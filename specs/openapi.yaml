@@ -1,0 +1,173 @@
+openapi: 3.0.0
+info:
+  title: Kipulux Corporativo Web2.5 API
+  description: Contratos de datos inmutables y especificaciones para el backend de trazabilidad de Kipulux.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Servidor de Desarrollo Local
+paths:
+  /api/auth/mock-login:
+    post:
+      summary: Login simulado para generación de tokens de prueba
+      description: Emite un JWT válido por 2 horas para un DNI o RUC.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - DNI_O_RUC
+              additionalProperties: false
+              properties:
+                DNI_O_RUC:
+                  type: string
+                  pattern: '^\d{8}$|^\d{11}$'
+                  description: DNI (8 dígitos) o RUC (11 dígitos) del usuario.
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    description: Token firmado JWT.
+                  tokenType:
+                    type: string
+                    example: Bearer
+                  expiresIn:
+                    type: string
+                    example: 2h
+        '400':
+          description: Formato de DNI/RUC inválido o parámetros incorrectos.
+
+  /api/productos/{sku}:
+    get:
+      summary: Consulta del Pasaporte Digital del Producto (Trazabilidad)
+      description: Obtiene la información histórica del producto y su genealogía de lotes de cuero de forma segura. Protegido contra BOLA.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          description: Código SKU único de la pieza física.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pasaporte digital encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sku:
+                    type: string
+                  status:
+                    type: string
+                    enum: [ORIGINADO, CUSTODIA, VENDIDO]
+                  Foto_Producto:
+                    type: string
+                  taller_artesano:
+                    type: string
+                  RUC_Fabricante:
+                    type: string
+                  Nro_Comprobante_Pago:
+                    type: string
+                  Hash_Comprobante_Pago:
+                    type: string
+                  lotes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ID_Lote_Cuero_Utilizado:
+                          type: string
+                        ruc_curtiembre:
+                          type: string
+                        PDF_Certificado_Previo:
+                          type: string
+        '401':
+          description: Token de autenticación no proporcionado.
+        '403':
+          description: Token de autenticación inválido o expirado.
+        '404':
+          description: Producto no encontrado o no autorizado para el DNI del cliente autenticado (BOLA Mitigado).
+
+  /api/productos/vender:
+    post:
+      summary: Registro de Venta Unificado y Certificado
+      description: Orquesta la venta híbrida coordinada. Firma la transacción on-chain en zkSyscoin y actualiza el estado logístico del producto en Neo4j.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - SKU_Producto_Final
+                - DNI_O_RUC_Comprador
+                - Nro_Comprobante_Pago
+                - wallet_address_comprador
+                - xml_boleta
+              additionalProperties: false
+              properties:
+                SKU_Producto_Final:
+                  type: string
+                  description: SKU alfanumérico único de la pieza física a vender.
+                DNI_O_RUC_Comprador:
+                  type: string
+                  pattern: '^\d{8}$|^\d{11}$'
+                  description: DNI (8 dígitos) o RUC (11 dígitos) del comprador.
+                Nro_Comprobante_Pago:
+                  type: string
+                  pattern: '^[BF][A-Z0-9]{3}-\d+$'
+                  description: Serie y número correlativo de la boleta o factura de venta.
+                wallet_address_comprador:
+                  type: string
+                  pattern: '^0x[0-9a-fA-F]{40}$'
+                  description: Dirección de wallet de Ethereum/zkSyscoin del comprador.
+                xml_boleta:
+                  type: string
+                  description: Contenido del XML de la boleta de venta electrónica de SUNAT.
+      responses:
+        '200':
+          description: Venta registrada con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  sku:
+                    type: string
+                  tokenId:
+                    type: string
+                  comprador:
+                    type: string
+                  hashSUNAT:
+                    type: string
+                    description: Hash SHA-256 de 32 bytes de la boleta (bytes32 format).
+                  txHash:
+                    type: string
+                    description: Hash de la transacción confirmada en zkSyscoin.
+        '400':
+          description: Parámetros inválidos, campos vacíos o formato de wallet incorrecto.
+        '401':
+          description: Token de autenticación no proporcionado.
+        '404':
+          description: Producto no encontrado en la base de datos o sin NFT registrado.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

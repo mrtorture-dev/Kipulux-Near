@@ -1,13 +1,22 @@
 const { createPublicClient, createWalletClient, http } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
 const { syscoinTestnet } = require('viem/chains');
+require('dotenv').config();
 
 async function main() {
   // Configuración de red y billetera
-  const vaultPrivateKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+  const rawPrivateKey = process.env.VAULT_PRIVATE_KEY;
+  const compromisedKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+  if (!rawPrivateKey || rawPrivateKey.trim() === '' || rawPrivateKey.trim() === compromisedKey) {
+    console.error('[Relayer Error] La variable de entorno VAULT_PRIVATE_KEY no está configurada, está vacía o contiene la clave de pruebas comprometida.');
+    process.exit(1);
+  }
+
+  const vaultPrivateKey = rawPrivateKey.startsWith('0x') ? rawPrivateKey : `0x${rawPrivateKey}`;
   const account = privateKeyToAccount(vaultPrivateKey);
   const vaultAddress = account.address;
-  const contractAddress = '0x43488c09cc0dac4acaa6747e556b6150f863b813'; // Contrato en origin
+  const contractAddress = process.env.NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS || '0x43488c09cc0dac4acaa6747e556b6150f863b813'; // Contrato en origin
   
   const publicClient = createPublicClient({ 
     chain: syscoinTestnet, 
