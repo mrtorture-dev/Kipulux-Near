@@ -1,32 +1,36 @@
-const { createPublicClient, createWalletClient, http } = require('viem');
+const { createPublicClient, createWalletClient, http, defineChain } = require('viem');
 const { privateKeyToAccount } = require('viem/accounts');
-const { syscoinTestnet } = require('viem/chains');
-require('dotenv').config();
+
+const zkSysTestnet = defineChain({
+  id: 57057,
+  name: 'zkSYS Genesis Testnet',
+  network: 'zksys-testnet',
+  nativeCurrency: { name: 'Syscoin', symbol: 'SYS', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc-zk.tanenbaum.io'] },
+    public: { http: ['https://rpc-zk.tanenbaum.io'] },
+  },
+  blockExplorers: {
+    default: { name: 'Blockscout', url: 'https://explorer-zk.tanenbaum.io' },
+  },
+});
 
 async function main() {
   // Configuración de red y billetera
-  const rawPrivateKey = process.env.VAULT_PRIVATE_KEY;
-  const compromisedKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
-
-  if (!rawPrivateKey || rawPrivateKey.trim() === '' || rawPrivateKey.trim() === compromisedKey) {
-    console.error('[Relayer Error] La variable de entorno VAULT_PRIVATE_KEY no está configurada, está vacía o contiene la clave de pruebas comprometida.');
-    process.exit(1);
-  }
-
-  const vaultPrivateKey = rawPrivateKey.startsWith('0x') ? rawPrivateKey : `0x${rawPrivateKey}`;
+  const vaultPrivateKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
   const account = privateKeyToAccount(vaultPrivateKey);
   const vaultAddress = account.address;
-  const contractAddress = process.env.NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS || '0x43488c09cc0dac4acaa6747e556b6150f863b813'; // Contrato en origin
+  const contractAddress = '0xb278d88fae2c640634d3bcb30edb08ba0afdac04'; // Nuevo contrato con ERC165
   
   const publicClient = createPublicClient({ 
-    chain: syscoinTestnet, 
-    transport: http('https://syscoin-tanenbaum-evm.publicnode.com') 
+    chain: zkSysTestnet, 
+    transport: http('https://rpc-zk.tanenbaum.io') 
   });
   
   const walletClient = createWalletClient({ 
     account, 
-    chain: syscoinTestnet, 
-    transport: http('https://syscoin-tanenbaum-evm.publicnode.com') 
+    chain: zkSysTestnet, 
+    transport: http('https://rpc-zk.tanenbaum.io') 
   });
 
   // ABI mínimo para mintear
@@ -43,17 +47,19 @@ async function main() {
     }
   ];
 
-  // Generar Metadata para DNI 00792282
+  // Generar Metadata para el Certificado ALDA
+  const descriptionText = "Documento oficial que acredita la legitimidad y los altos estándares de calidad de su producto ALDA. Un símbolo de exclusividad, herencia y elegancia atemporal en cada detalle.\n\n🔗 Certificado Oficial PDF:\nhttps://alda.com.pe/pdf/cert_BC007NN.pdf\n\n✅ Validación del Registro:\nhttps://alda.com.pe/validar/BC007NN";
+
   const metadata = {
-    name: "Certificado de Compra DNI 00792282",
-    description: "Certificado Oficial de Origen para Billetera de cuero negro BC007NN",
+    name: "ALDA Original - Billetera de Cuero",
+    description: descriptionText,
     image: "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png",
+    external_url: "https://alda.com.pe/", // Un link real a la web de ALDA
     attributes: [
-      { trait_type: "DNI Cliente", value: "00792282" },
+      { trait_type: "ID de Registro", value: "00792282" },
       { trait_type: "SKU", value: "BC007NN" },
       { trait_type: "Producto", value: "Billetera de cuero negro" },
-      { trait_type: "Fecha Compra", value: "08/07/2022" },
-      { trait_type: "Estado", value: "Certificado en Syscoin" }
+      { trait_type: "Fecha de Compra", value: "08/07/2022" }
     ]
   };
 
@@ -73,7 +79,7 @@ async function main() {
     });
     
     console.log(`Tx enviada: ${hash}`);
-    console.log(`Esperando confirmación en Syscoin Tanenbaum...`);
+    console.log(`Esperando confirmación en zkSYS Genesis Testnet...`);
     
     const receipt = await publicClient.waitForTransactionReceipt({ 
       hash,
@@ -83,7 +89,7 @@ async function main() {
     const tokenId = BigInt(receipt.logs[0]?.topics[3] || '0').toString();
     console.log(`¡NFT Minteado exitosamente!`);
     console.log(`TokenId: ${tokenId}`);
-    console.log(`Puedes verlo en el explorador de Syscoin: https://tanenbaum.io/tx/${hash}`);
+    console.log(`Puedes verlo en el explorador de zkSYS: https://explorer-zk.tanenbaum.io/tx/${hash}`);
     
   } catch(err) {
     console.error(`Error minteando el certificado:`, err);

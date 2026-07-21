@@ -67,12 +67,7 @@
     <header class="border-b border-neutral-900 bg-neutral-950/80 backdrop-blur-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             <div class="flex items-center space-x-3 cursor-pointer" onclick="goToHome()">
-                <!-- Inline SVG Logo -->
-                <svg class="h-10 w-10 text-gold-500 filter drop-shadow" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M25 5L8 15V35L25 45L42 35V15L25 5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M25 12L15 18V32L25 38L35 32V18L25 12Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
-                    <circle cx="25" cy="25" r="4" fill="currentColor"/>
-                </svg>
+                <img src="logo.jpg" class="h-12 w-auto object-contain rounded-md" alt="Alda Logo">
                 <div>
                     <h1 class="title-serif text-xl font-bold tracking-widest text-neutral-100">KIPU<span class="text-gold-500">LUX</span></h1>
                     <p class="text-[9px] uppercase tracking-widest text-gold-500/80 font-semibold">Trazabilidad & Excelencia</p>
@@ -349,6 +344,42 @@
                                     Registrar Venta & Transferir NFT
                                 </button>
                             </form>
+                    </div>
+
+                    <!-- Módulo de WooCommerce Dashboard -->
+                    <div class="glass-panel rounded-2xl p-6 space-y-6 mt-8">
+                        <div class="border-b border-neutral-900 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <div>
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">Órdenes Recientes de WooCommerce & Certificaciones</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Sincroniza y monitorea las ventas de alda.com.pe y su estado en la Blockchain.</p>
+                            </div>
+                            <button type="button" onclick="loadAdminDashboard()" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-4 rounded-lg text-xs transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 self-start sm:self-auto">
+                                🔄 Sincronizar WooCommerce
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="border-b border-neutral-900 text-neutral-400 uppercase tracking-wider">
+                                        <th class="py-3 px-4">Cliente</th>
+                                        <th class="py-3 px-4">Producto / SKU</th>
+                                        <th class="py-3 px-4 text-center">Fecha</th>
+                                        <th class="py-3 px-4 text-center">Estado Blockchain</th>
+                                        <th class="py-3 px-4 text-right">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-orders-table-body" class="text-neutral-300 divide-y divide-neutral-900">
+                                    <!-- Dynamic rows loaded here -->
+                                    <tr>
+                                        <td colspan="5" class="py-8 text-center text-neutral-500">
+                                            Haz clic en "Sincronizar WooCommerce" para cargar las órdenes.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div id="admin-orders-empty" class="text-center py-8 text-neutral-500 hidden">
+                                No se encontraron órdenes recientes en WooCommerce.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -624,30 +655,23 @@
             renderTabs();
         }
 
-        // Render Tabs and select primary panel
+        // Render Tabs and select primary panel (Restringido por Rol)
         function renderTabs() {
             const tabsNav = document.getElementById('dashboard-tabs');
             tabsNav.innerHTML = ''; // Clear
 
-            const roles = ['Artesano', 'Tienda', 'Cliente'];
-            // We want the user to be able to switch tabs if desired, but default to their assigned role
-            roles.forEach(role => {
-                const isUserRole = (currentUser.type === role);
-                
-                const tabBtn = document.createElement('button');
-                tabBtn.className = `whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition focus:outline-none ${
-                    isUserRole 
-                        ? 'border-gold-500 text-gold-500 font-bold' 
-                        : 'border-transparent text-neutral-400 hover:text-neutral-200 hover:border-neutral-850'
-                }`;
-                tabBtn.id = `tab-btn-${role.toLowerCase()}`;
-                tabBtn.textContent = `Panel ${role}`;
-                tabBtn.onclick = () => selectTab(role);
-                tabsNav.appendChild(tabBtn);
-            });
+            // Solo mostramos la pestaña del rol correspondiente para evitar fugas de acceso
+            const role = currentUser.type; // 'Artesano', 'Tienda', 'Cliente'
+            
+            const tabBtn = document.createElement('button');
+            tabBtn.className = 'whitespace-nowrap pb-4 px-1 border-b-2 font-bold text-sm transition focus:outline-none border-gold-500 text-gold-500';
+            tabBtn.id = `tab-btn-${role.toLowerCase()}`;
+            tabBtn.textContent = `Panel ${role}`;
+            tabBtn.onclick = () => selectTab(role);
+            tabsNav.appendChild(tabBtn);
 
             // Select default tab
-            selectTab(currentUser.type);
+            selectTab(role);
         }
 
         function selectTab(roleName) {
@@ -680,6 +704,8 @@
             // Trigger fetch data for the specific panel if needed
             if (roleName === 'Cliente') {
                 fetchClientPurchases();
+            } else if (roleName === 'Tienda') {
+                loadAdminDashboard();
             }
         }
 
@@ -1032,6 +1058,110 @@
                 treeBox.classList.add('hidden');
             }
         }
+
+        // WooCommerce Admin Dashboard Loader
+        async function loadAdminDashboard() {
+            const token = localStorage.getItem('accessToken');
+            const tableBody = document.getElementById('admin-orders-table-body');
+            const emptyState = document.getElementById('admin-orders-empty');
+            
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="py-8 text-center text-neutral-500">
+                        <svg class="h-5 w-5 animate-spin mx-auto text-gold-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
+                        Conectando con WooCommerce alda.com.pe...
+                    </td>
+                </tr>
+            `;
+            if (emptyState) emptyState.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/compras-totales`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Fallo al obtener las órdenes de WooCommerce.');
+                }
+
+                const purchases = await res.json();
+                tableBody.innerHTML = '';
+
+                if (purchases.length === 0) {
+                    if (emptyState) emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                purchases.forEach(p => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-neutral-900/60 hover:bg-neutral-900/20 transition-all";
+                    
+                    const statusBadge = p.registrado 
+                        ? `<span class="bg-emerald-950/80 border border-emerald-800 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Certificado (NFT)</span>`
+                        : `<span class="bg-amber-950/80 border border-amber-800 text-amber-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">En Proceso (Sin NFT)</span>`;
+
+                    const actionBtn = p.registrado
+                        ? `<button onclick="searchSkuDirect('${p.SKU}')" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-1.5 px-3 rounded-lg text-[10px] transition uppercase tracking-wider">Trazabilidad</button>`
+                        : `<button onclick="prepareRegistration('${p.SKU}', '${p.DNI}')" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-1.5 px-3 rounded-lg text-[10px] transition uppercase tracking-wider active:scale-95">Registrar</button>`;
+
+                    row.innerHTML = `
+                        <td class="py-3.5 px-4">
+                            <div class="font-semibold text-neutral-200">${p['Nombre Cliente']}</div>
+                            <div class="text-[10px] text-neutral-500 font-mono">DNI: ${p.DNI}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center space-x-3">
+                                ${p.Foto_Producto ? `<img src="${p.Foto_Producto}" class="w-8 h-8 rounded object-cover border border-neutral-800">` : `<div class="w-8 h-8 rounded bg-neutral-900 border border-neutral-800 flex items-center justify-center text-[10px]">N/A</div>`}
+                                <div>
+                                    <div class="font-semibold text-neutral-200">${p.Item}</div>
+                                    <div class="text-[10px] text-neutral-500 font-mono">SKU: ${p.SKU}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 text-center text-neutral-400 font-mono">${p['F. Emision']}</td>
+                        <td class="py-3.5 px-4 text-center">${statusBadge}</td>
+                        <td class="py-3.5 px-4 text-right">${actionBtn}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                showAlert('success', 'WooCommerce Sincronizado', `Se cargaron ${purchases.length} ítems de venta en tiempo real.`);
+
+            } catch (err) {
+                showAlert('error', 'Error WooCommerce', err.message);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-rose-500">
+                            Fallo al conectar con WooCommerce: ${err.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Rellenar formulario B2C
+        window.prepareRegistration = function(sku, dni) {
+            const form = document.getElementById('form-vender-producto');
+            form.querySelector('[name="SKU_Producto_Final"]').value = sku;
+            form.querySelector('[name="DNI_O_RUC_Comprador"]').value = dni;
+            
+            // Generar número de comprobante aleatorio B001-XXXX
+            const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+            form.querySelector('[name="Nro_Comprobante_Pago"]').value = `B001-${randomNum}`;
+            
+            // Colocar cuenta 0 de Hardhat como default para el comprador local
+            form.querySelector('[name="wallet_address_comprador"]').value = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+            
+            // Simular un XML básico para SUNAT
+            document.getElementById('xml-textarea').value = `<?xml version="1.0" encoding="UTF-8"?>\n<Invoice>\n  <ID>B001-${randomNum}</ID>\n  <IssueDate>${new Date().toISOString().split('T')[0]}</IssueDate>\n  <Customer>\n    <ID schemeID="1">${dni}</ID>\n  </Customer>\n  <LineItem>\n    <SKU>${sku}</SKU>\n    <Description>Prenda Premium ALDA</Description>\n  </LineItem>\n</Invoice>`;
+            
+            showAlert('info', 'Formulario Rellenado', `Datos del SKU ${sku} cargados en el Formulario B2C.`);
+            
+            // Hacer scroll hasta el formulario
+            document.getElementById('form-vender-producto').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        window.loadAdminDashboard = loadAdminDashboard;
 
         // 6. DEV UTILITY: SEED DATABASE
         async function seedDatabase() {

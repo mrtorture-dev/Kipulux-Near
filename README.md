@@ -122,8 +122,16 @@ Sigue esta guía secuencial en la UI del navegador para simular el ciclo de vida
 * **Detalle Técnico:** El backend calcula el hash SHA-256 de la boleta de manera interna y firma la transacción on-chain. El NFT se transfiere al cliente, el estado cambia a `VENDIDO` y se crea la relación de propiedad `PROPIEDAD_DE` resguardando la información personal.
 
 ### Paso 5: Consulta del Comprador Final
-* **Actor:** Cliente Juan Pérez (Login: `cliente_juan` / `Cliente123!`).
-* **Acción:** En el **Panel Cliente**, verás la tarjeta de la prenda con su imagen real subida. Haz clic en **"Certificado"** para descargar el PDF original o presiona **"Trazabilidad"** para renderizar la línea de tiempo vertical interactiva (Lote ➔ Artesano ➔ Tienda ➔ Venta Final).
+* **Actor:** Cliente final.
+* **Acción:** En el **Panel Cliente** (`http://localhost:3005`), el cliente se loguea usando únicamente su DNI (ej. `00792282`). Verá el historial de todas sus compras. Al hacer clic en **"Ver Certificación"**, se abre el pasaporte digital con la línea de tiempo interactiva (Lote ➔ Artesano ➔ Tienda ➔ Venta Final).
+* **Detalle Técnico:** En el panel del cliente, también encontrará enlaces directos al bot de **Telegram (@Kipulux_bot)**, permitiéndole interactuar con la marca y verificar su trazabilidad desde cualquier dispositivo móvil.
+
+### Paso 6: Sincronización con WooCommerce y Auto-generación (Demo)
+* **Actor:** Tienda Cusco (Panel de Admin).
+* **Acción:** En el Dashboard principal (`/index_colleague`), al lado izquierdo, puedes hacer clic en **"Sincronizar"** para obtener las últimas órdenes de WooCommerce.
+* **Detalle Técnico & Fallbacks:** 
+    * Si la API de WooCommerce falla o no hay conexión, el backend inyectará automáticamente un **Fallback de Mock Data** (órdenes simuladas para el DNI `00792282` y `74629527`) para que la demo nunca se detenga.
+    * Si haces clic en **"Registrar Venta & Transferir NFT"** sobre una orden de WooCommerce que aún no existe en Neo4j, el sistema actuará con un **Auto-generador Idempotente (MERGE)**. Este módulo creará el producto en el grafo, le asignará un Lote y Artesano por defecto, generará un PDF semilla físicamente, acuñará su NFT on-chain y registrará la venta, ¡todo en menos de 1 segundo!
 
 ---
 
@@ -134,11 +142,13 @@ Sigue esta guía secuencial en la UI del navegador para simular el ciclo de vida
 * **Solución 2:** Revisa que el puerto en el archivo `.env` coincida con la configuración de tu Neo4j Desktop (usualmente `bolt://localhost:7687`).
 * **Solución 3:** Si tu entorno local exige deshabilitar SSL/cifrado de conexiones, asegúrate de que tu cadena de conexión empiece con `bolt://` en lugar de `neo4j://` en las variables de entorno.
 
+### El Auto-generador marca "Falta NFT" o falla
+* El backend incluye escudos de protección (Fallbacks) para estos casos. Si la blockchain (Hardhat) se reinició, asegúrate de haber reiniciado tu servidor Express (`node server.js`) para que tome el nuevo Smart Contract desde `.env`.
+
 ### Limpieza y Reseteo Rápido de Pruebas
 Si deseas limpiar toda la base de datos orientada a grafos y resetearla a su estado semilla inicial de manera rápida:
-1. Haz clic en el botón flotante **"Sembrar Base de Datos Neo4j"** en el frontend.
+1. Asegúrate de ejecutar `node scripts/seed_trazabilidad.js` en una consola.
 2. Alternativamente, puedes ejecutar la siguiente query Cypher directo en el Neo4j Browser para borrar todo el contenido:
    ```cypher
    MATCH (n) DETACH DELETE n
    ```
-   Y luego reiniciar el script `scripts/start_all.js` para volver a crear las restricciones de unicidad y usuarios iniciales.

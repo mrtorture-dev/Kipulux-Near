@@ -41,6 +41,13 @@
                     <button type="button" id="back-to-client" class="btn-outline" style="margin-top:10px;">Soy Cliente</button>
                     <div id="artisan-error" class="error-message hidden">Credenciales incorrectas.</div>
                 </form>
+
+                <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid var(--color-border); padding-top: 1rem;">
+                    <a href="https://t.me/Kipulux_bot" target="_blank" style="color: #0088cc; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 500;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.198 2.43a.5.5 0 0 0-.586-.068L2.096 11.23a.5.5 0 0 0-.017.912l5.487 2.21 2.378 6.136a.5.5 0 0 0 .866.126l3.3-3.8 4.792 3.593a.5.5 0 0 0 .783-.284l5-16.5a.5.5 0 0 0-.487-.693z"></path><line x1="8.3" y1="13.1" x2="21" y2="3"></line></svg>
+                        ¿Consultar en Telegram? Chatea con @Kipulux_bot
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -54,12 +61,39 @@
             </header>
             
             <main class="dashboard-main">
-                <div class="welcome-banner glass-card">
-                    <h2>Bienvenido(a), <span id="user-name">Cliente</span></h2>
-                    <p>Aquí puedes revisar el detalle de tus compras registradas.</p>
+                <div class="welcome-banner glass-card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2>Bienvenido(a), <span id="user-name">Cliente</span></h2>
+                        <p>Aquí puedes revisar el detalle de tus compras registradas.</p>
+                    </div>
+                    <a href="https://t.me/Kipulux_bot" target="_blank" class="premium-btn" style="background: linear-gradient(135deg, #0088cc 0%, #00a2ed 100%); border-color: #0088cc; font-size: 0.8rem; text-transform: none; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #ffffff;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.198 2.43a.5.5 0 0 0-.586-.068L2.096 11.23a.5.5 0 0 0-.017.912l5.487 2.21 2.378 6.136a.5.5 0 0 0 .866.126l3.3-3.8 4.792 3.593a.5.5 0 0 0 .783-.284l5-16.5a.5.5 0 0 0-.487-.693z"></path></svg>
+                        Telegram @Kipulux_bot
+                    </a>
                 </div>
 
                 <div class="purchases-container">
+                    <!-- Filtros de búsqueda y ordenamiento -->
+                    <div class="filter-bar glass-card">
+                        <div class="filter-item">
+                            <input type="text" id="search-product" placeholder="🔍 Buscar por nombre de producto..." autocomplete="off">
+                        </div>
+                        <div class="filter-item">
+                            <select id="filter-category">
+                                <option value="all">Todas las categorías</option>
+                                <option value="billetera">Billeteras</option>
+                                <option value="cartera">Carteras y Bolsos</option>
+                                <option value="otro">Otros productos</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <select id="sort-date">
+                                <option value="desc">Más recientes primero</option>
+                                <option value="asc">Más antiguos primero</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <h3 class="section-title">Historial de Compras</h3>
                     <div id="purchases-list" class="purchases-list">
                         <!-- Items will be injected here via JS -->

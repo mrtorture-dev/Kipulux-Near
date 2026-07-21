@@ -14,9 +14,21 @@ async function main() {
   // Obtener la fábrica del contrato
   const KipuluxTrazabilidad = await ethers.getContractFactory("KipuluxTrazabilidad");
   
+  // Forzar un gasPrice mínimo razonable en Mainnet para evitar que quede atrapada
+  const feeData = await ethers.provider.getFeeData();
+  let gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
+  const minGasPrice = ethers.parseUnits("0.1", "gwei");
+  if (gasPrice < minGasPrice) {
+    gasPrice = minGasPrice;
+  }
+  console.log(`[Deploy] Usando gasPrice: ${ethers.formatUnits(gasPrice, "gwei")} gwei`);
+
   // Desplegar el contrato pasando el deployerAddress (Relayer) como propietario inicial
   console.log("[Deploy] Desplegando KipuluxTrazabilidad...");
-  const contract = await KipuluxTrazabilidad.deploy(deployerAddress);
+  const contract = await KipuluxTrazabilidad.deploy(deployerAddress, { gasPrice });
+  const txHash = contract.deploymentTransaction().hash;
+  console.log(`[Deploy] Transacción de despliegue enviada. Hash: ${txHash}`);
+  console.log(`[Deploy] Esperando confirmación de bloques en Syscoin Explorer: https://explorer.syscoin.org/tx/${txHash}`);
   await contract.waitForDeployment();
   
   const contractAddress = await contract.getAddress();
@@ -25,7 +37,7 @@ async function main() {
   // Mintear tokens de prueba 1, 2 y 3 para sincronizar con los productos de Neo4j
   console.log("[Deploy] Minteando tokens de prueba 1, 2 y 3 para el relayer...");
   for (let i = 1; i <= 3; i++) {
-    const tx = await contract.mintAuthorized(deployerAddress, `ipfs://mock-metadata-token-${i}`);
+    const tx = await contract.mintAuthorized(deployerAddress, `ipfs://mock-metadata-token-${i}`, { gasPrice });
     await tx.wait();
     console.log(`[Deploy] Token ${i} minteado con éxito.`);
   }

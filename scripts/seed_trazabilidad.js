@@ -68,17 +68,17 @@ async function ejecutarSembrado() {
             CREATE (lotePadre:LoteCuero {
                 ID_Lote_Cuero_Utilizado: "LOTE-PADRE-001",
                 ruc_curtiembre: "20777888999",
-                PDF_Certificado_Previo: "QmXoypizjW3WknFixtdKL9B2D7QsNTkwVKzEA48g8Ss65D"
+                PDF_Certificado_Previo: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
             })
             CREATE (loteHijo:LoteCuero {
                 ID_Lote_Cuero_Utilizado: "LOTE-HIJO-002",
                 ruc_curtiembre: "20777888999",
-                PDF_Certificado_Previo: "QmXoypizjW3WknFixtdKL9B2D7QsNTkwVKzEA48g8Ss65D"
+                PDF_Certificado_Previo: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
             })
             CREATE (loteNieto:LoteCuero {
                 ID_Lote_Cuero_Utilizado: "LOTE-NIETO-003",
                 ruc_curtiembre: "20777888999",
-                PDF_Certificado_Previo: "QmYwAPJ88CZ21GCg69B3Y9ff62XSp23tKCTsF4C4rJ8B1D"
+                PDF_Certificado_Previo: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
             })
             
             // Relaciones cronológicas de la genealogía del cuero
@@ -143,6 +143,15 @@ async function ejecutarSembrado() {
                 Foto_Producto: "https://alda.com.pe/bolso-003.png"
             })
 
+            // Producto 4 (Para el cliente 00792282): Billetera BC007NN
+            CREATE (p4:Producto {
+                SKU_Producto_Final: "BC007NN",
+                status: "VENDIDO",
+                nft_token_id: "4",
+                tx_hash_mint: "0x4d4f9a1e1f5077bc4ae1241026918ace6dd2934df53b4e5e8c270ac241f8e9bc",
+                Foto_Producto: "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png"
+            })
+
             // F. Establecer Relaciones Duales por Compatibilidad con la API
             // Producto 1
             CREATE (p1)-[:PROVIENE_DE]->(loteNieto)
@@ -163,6 +172,31 @@ async function ejecutarSembrado() {
             CREATE (p3)-[:CONFECCIONADO_POR]->(artesano)
             CREATE (artesano)-[:CONFECCIONÓ]->(p3)
             CREATE (p3)-[:ENTREGADO_A {fecha_transferencia: datetime()}]->(tienda)
+
+            // Producto 4 (BC007NN vendido a cliente Juan Pérez)
+            CREATE (p4)-[:PROVIENE_DE]->(loteNieto)
+            CREATE (p4)-[:HEREDA_DE]->(loteNieto)
+            CREATE (p4)-[:CONFECCIONADO_POR]->(artesano)
+            CREATE (artesano)-[:CONFECCIONÓ]->(p4)
+            CREATE (p4)-[:ENTREGADO_A {fecha_transferencia: datetime()}]->(tienda)
+            CREATE (tienda)-[:VENDIÓ {
+                fecha: datetime(),
+                Nro_Comprobante_Pago: "B001-00029384",
+                Hash_Comprobante_Pago: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                tx_hash_venta: "0x5861318621cad4da92880108eaa129d93fe16e97203c9b91abac356478420fec"
+            }]->(p4)
+            CREATE (p4)-[:PROPIEDAD_DE {
+                fecha: datetime(),
+                Nro_Comprobante_Pago: "B001-00029384",
+                Hash_Comprobante_Pago: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                tx_hash_venta: "0x5861318621cad4da92880108eaa129d93fe16e97203c9b91abac356478420fec"
+            }]->(cliente)
+            CREATE (p4)-[:VENDIDO_A {
+                fecha: datetime(),
+                Nro_Comprobante_Pago: "B001-00029384",
+                Hash_Comprobante_Pago: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                tx_hash_venta: "0x5861318621cad4da92880108eaa129d93fe16e97203c9b91abac356478420fec"
+            }]->(cliente)
         `;
 
         await session.executeWrite(async (tx) => {

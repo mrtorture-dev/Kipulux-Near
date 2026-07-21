@@ -6,6 +6,8 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJSDoc = require('swagger-jsdoc');
 const multer = require('multer');
 const path = require('path');
+const axios = require('axios');
+const fs = require('fs');
 const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain } = require('./services/blockchain');
 const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema } = require('./middlewares/validation');
 const { subirAIPFS } = require('./services/ipfs');
@@ -15,6 +17,10 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
+
+app.get('/index_colleague', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index_colleague.html'));
+});
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -96,9 +102,10 @@ function authenticateToken(req, res, next) {
             return res.status(403).json({ error: 'Token inválido o expirado.' });
         }
         
-        // Inyectamos el DNI/RUC decodificado del token en la solicitud
+        // Inyectamos el DNI/RUC decodificado y el rol (type) en la solicitud
         req.user = {
-            DNI_O_RUC: decoded.DNI_O_RUC
+            DNI_O_RUC: decoded.DNI_O_RUC,
+            type: decoded.type
         };
         next();
     });
@@ -277,6 +284,88 @@ app.get('/api/productos/:sku', authenticateToken, async (req, res) => {
  *       500:
  *         description: Error interno al procesar transacción blockchain o Neo4j.
  */
+// Helper para auto-generar productos durante la venta final para facilitar la demo de WooCommerce
+async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
+    // 1. Obtener un Artesano por defecto
+    const artesanoRes = await session.run(`
+        MATCH (a:Artesano)
+        RETURN a.RUC_Fabricante AS ruc, a.eth_address AS address
+        LIMIT 1
+    `);
+    
+    if (artesanoRes.records.length === 0) {
+        throw new Error('No se encontró ningún artesano registrado en Neo4j.');
+    }
+    const rucFabricante = artesanoRes.records[0].get('ruc');
+    const artesanoAddress = artesanoRes.records[0].get('address');
+
+    // 2. Obtener un Lote por defecto
+    const loteRes = await session.run(`
+        MATCH (l:LoteCuero)
+        RETURN l.ID_Lote_Cuero_Utilizado AS loteId
+        LIMIT 1
+    `);
+    if (loteRes.records.length === 0) {
+        throw new Error('No se encontró ningún lote de cuero registrado en Neo4j.');
+    }
+    const loteId = loteRes.records[0].get('loteId');
+
+    // 3. Generar tokenURI simulado
+    const tokenUri = `ipfs://mock-cid-trazabilidad-${sku}`;
+    
+    // 4. Mintear NFT en la blockchain para el artesano
+    console.log(`[Auto-Generador Demo] Acuñando NFT de origen para SKU: ${sku} en wallet artesano: ${artesanoAddress}...`);
+    const { tokenId, txHash } = await ejecutarMintOnChain(artesanoAddress, tokenUri);
+    
+    // 5. Crear el producto en Neo4j y vincularlo
+    const fotoUrl = "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png";
+    const pdfUrl = "/uploads/certificado-semilla.pdf";
+    
+    // Asegurar que exista certificado-semilla.pdf en public/uploads/
+    const uploadDir = path.join(__dirname, 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const pdfPath = path.join(uploadDir, 'certificado-semilla.pdf');
+    if (!fs.existsSync(pdfPath)) {
+        const dummyPdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 45 >>\nstream\nBT /F1 24 Tf 70 700 Td (Certificado de Origen Kipulux) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000212 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n306\n%%EOF";
+        fs.writeFileSync(pdfPath, dummyPdf);
+    }
+
+    await session.run(`
+        MATCH (art:Artesano {RUC_Fabricante: $rucFabricante})
+        MATCH (lote:LoteCuero {ID_Lote_Cuero_Utilizado: $loteId})
+        MERGE (p:Producto {SKU_Producto_Final: $sku})
+        ON CREATE SET 
+            p.status = 'ORIGINADO',
+            p.nft_token_id = $tokenId,
+            p.tx_hash_mint = $txHash,
+            p.Foto_Producto = $foto_url,
+            p.PDF_Certificado_Previo = $pdf_url
+        MERGE (art)-[:CONFECCIONÓ]->(p)
+        MERGE (p)-[:HEREDA_DE]->(lote)
+    `, {
+        rucFabricante,
+        loteId,
+        sku,
+        tokenId,
+        txHash,
+        foto_url: fotoUrl,
+        pdf_url: pdfUrl
+    });
+
+    // 6. Transferir custodia a Tienda
+    await session.run(`
+        MATCH (p:Producto {SKU_Producto_Final: $sku})
+        MATCH (t:Tienda {id_tienda: $tiendaRuc})
+        MERGE (p)-[:ENTREGADO_A]->(t)
+        SET p.status = 'TIENDA'
+    `, { sku, tiendaRuc });
+
+    console.log(`[Auto-Generador Demo] SKU ${sku} fabricado y entregado a tienda ${tiendaRuc} con Token ID: ${tokenId}.`);
+    return { tokenId, status: 'TIENDA' };
+}
+
 app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), async (req, res) => {
     const { SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador, xml_boleta } = req.body;
     const tiendaRuc = req.user.DNI_O_RUC;
@@ -295,13 +384,23 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             { sku: SKU_Producto_Final, tiendaRuc }
         );
 
+        let tokenId, status;
         if (findResult.records.length === 0) {
-            return res.status(400).json({ error: 'La tienda no posee la custodia de este producto o el producto no existe.' });
+            // Si el producto no existe o la tienda no lo tiene en custodia, lo auto-generamos al vuelo!
+            try {
+                console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado. Auto-creando en Neo4j/Blockchain...`);
+                const autoProd = await autoGenerarProductoYEntregarATienda(SKU_Producto_Final, tiendaRuc, session);
+                tokenId = autoProd.tokenId;
+                status = autoProd.status;
+            } catch (autoErr) {
+                console.error('[API Venta] Error en auto-generador:', autoErr);
+                return res.status(400).json({ error: 'La tienda no posee la custodia y falló el auto-generado: ' + autoErr.message });
+            }
+        } else {
+            const record = findResult.records[0];
+            status = record.get('status');
+            tokenId = record.get('tokenId');
         }
-
-        const record = findResult.records[0];
-        const status = record.get('status');
-        const tokenId = record.get('tokenId');
 
         if (status === 'VENDIDO') {
             return res.status(400).json({ error: 'El producto ya figura como VENDIDO en la base de datos.' });
@@ -1280,6 +1379,280 @@ app.get('/api/clientes/historial-compras', authenticateToken, async (req, res) =
     } catch (error) {
         console.error('[API Historial] Error al consultar compras:', error);
         return res.status(500).json({ error: 'Error interno al consultar historial de compras.' });
+    } finally {
+        await session.close();
+    }
+});
+
+/**
+ * @openapi
+ * /api/compras-woo/{dni}:
+ *   get:
+ *     summary: Consultar compras de WooCommerce de un cliente por su DNI.
+ *     description: Obtiene en tiempo real las compras de la tienda alda.com.pe buscando en los metadatos de DNI (_billing_taxable).
+ *     parameters:
+ *       - in: path
+ *         name: dni
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: DNI de 8 dígitos del comprador.
+ *     responses:
+ *       200:
+ *         description: Historial de compras formateado para el frontend.
+ *       400:
+ *         description: Formato de DNI inválido.
+ *       500:
+ *         description: Error de consulta.
+ */
+app.get('/api/compras-woo/:dni', async (req, res) => {
+    const { dni } = req.params;
+
+    if (!/^\d{8}$/.test(dni)) {
+        return res.status(400).json({ error: 'El DNI debe tener exactamente 8 dígitos.' });
+    }
+
+    const session = driver.session();
+    try {
+        const credentials = Buffer.from('ck_your_woocommerce_consumer_key_placeholder:cs_your_woocommerce_consumer_secret_placeholder').toString('base64');
+        const wooUrl = 'https://alda.com.pe/wp-json/wc/v3/orders';
+        
+        let wooOrders = [];
+        try {
+            const response = await axios.get(wooUrl, {
+                params: { per_page: 100 },
+                headers: { 'Authorization': `Basic ${credentials}` },
+                timeout: 5000 // 5 segundos maximo
+            });
+            wooOrders = response.data;
+        } catch (wooError) {
+            console.warn('[WooCommerce API] Falló WooCommerce, usando Mock Data para la demo de cliente...', wooError.message);
+            wooOrders = [
+                {
+                    id: 9991,
+                    billing: { first_name: "Usuario", last_name: "Demo" },
+                    meta_data: [{ key: "_billing_taxable", value: "00792282" }],
+                    date_created: new Date().toISOString(),
+                    currency: "PEN",
+                    total: "250.00",
+                    line_items: [
+                        { name: "Billetera Alda Premium", sku: "ALD-PREM-001", quantity: 1, price: 250, image: { src: "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero.png" } }
+                    ]
+                },
+                {
+                    id: 9992,
+                    billing: { first_name: "Demo", last_name: "Tienda" },
+                    meta_data: [{ key: "_billing_taxable", value: "74629527" }],
+                    date_created: new Date().toISOString(),
+                    currency: "PEN",
+                    total: "120.00",
+                    line_items: [
+                        { name: "Monedero Cuero Genuino", sku: "ALD-MON-002", quantity: 1, price: 120, image: { src: "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero.png" } }
+                    ]
+                }
+            ];
+        }
+
+        // 1. Filtrar órdenes que correspondan al DNI
+        const matchingOrders = wooOrders.filter(order => {
+            const doc = order.meta_data.find(m => m.key === '_billing_taxable');
+            return doc && doc.value === dni;
+        });
+
+        console.log(`[WooCommerce API] Encontradas ${matchingOrders.length} órdenes para DNI: ${dni}`);
+
+        // Mapear al formato que espera el frontend cruzando con Neo4j
+        const purchases = [];
+        for (const order of matchingOrders) {
+            const nombreCliente = `${order.billing.first_name} ${order.billing.last_name}`.trim() || 'Cliente';
+            const fecha = order.date_created ? order.date_created.split('T')[0] : 'Fecha no especificada';
+            const moneda = order.currency === 'PEN' ? 'S/' : (order.currency === 'USD' ? '$' : order.currency);
+            
+            for (const item of order.line_items) {
+                const sku = item.sku || 'Sin SKU';
+                
+                // Consultar en Neo4j si existe el producto y tiene NFT
+                const cypher = `
+                    MATCH (p:Producto {SKU_Producto_Final: $sku})
+                    OPTIONAL MATCH (art:Artesano)-[:CONFECCIONÓ]->(p)
+                    OPTIONAL MATCH (p)-[:HEREDA_DE]->(loteInmediato:LoteCuero)
+                    OPTIONAL MATCH path = (loteInmediato)-[:SUBDIVIDIDO_DE*0..]->(loteAncestro:LoteCuero)
+                    WITH p, art, path
+                    ORDER BY length(path) DESC
+                    LIMIT 1
+                    RETURN p.nft_token_id AS nft_token_id,
+                           p.PDF_Certificado_Previo AS PDF_Certificado_Previo,
+                           art.nombre_taller AS taller_artesano,
+                           art.RUC_Fabricante AS RUC_Fabricante,
+                           [node IN nodes(path) | {
+                               ID_Lote_Cuero_Utilizado: node.ID_Lote_Cuero_Utilizado,
+                               ruc_curtiembre: node.ruc_curtiembre,
+                               PDF_Certificado_Previo: node.PDF_Certificado_Previo
+                           }] AS lotes
+                `;
+                
+                const dbResult = await session.run(cypher, { sku });
+                let registrado = false;
+                let nft_token_id = null;
+                let trazabilidad = null;
+                let estado = 'En Proceso...';
+                
+                if (dbResult.records.length > 0) {
+                    const record = dbResult.records[0];
+                    nft_token_id = record.get('nft_token_id');
+                    
+                    if (nft_token_id !== null && nft_token_id !== undefined) {
+                        registrado = true;
+                        estado = 'Certificado';
+                        trazabilidad = {
+                            taller_artesano: record.get('taller_artesano'),
+                            RUC_Fabricante: record.get('RUC_Fabricante'),
+                            lotes: record.get('lotes') || [],
+                            PDF_Certificado_Previo: record.get('PDF_Certificado_Previo'),
+                            contract_address: process.env.NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS || '0x5fbdb2315678afecb367f032d93f642f64180aa3'
+                        };
+                    }
+                }
+
+                purchases.push({
+                    "Nombre Cliente": nombreCliente,
+                    "F. Emision": fecha,
+                    "Moneda": moneda,
+                    "Total Item": item.total,
+                    "Item": item.name,
+                    "SKU": sku,
+                    "Estado de la venta": estado,
+                    "Cantidad": item.quantity,
+                    "Precio Unitario": item.price,
+                    "Foto_Producto": item.image && item.image.src ? item.image.src : null,
+                    "registrado": registrado,
+                    "nft_token_id": nft_token_id,
+                    "trazabilidad": trazabilidad
+                });
+            }
+        }
+
+        return res.status(200).json(purchases);
+    } catch (error) {
+        console.error('[WooCommerce API] Error en la consulta:', error.message);
+        return res.status(500).json({ error: 'Error al conectar con la tienda WooCommerce.' });
+    } finally {
+        await session.close();
+    }
+});
+
+/**
+ * @openapi
+ * /api/admin/compras-totales:
+ *   get:
+ *     summary: Obtener todas las compras recientes de WooCommerce con su estado de registro en Neo4j/Blockchain.
+ *     description: Módulo administrativo para monitorear qué ventas están certificadas y cuáles están pendientes.
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Listado de compras recientes con su estado de registro.
+ *       453:
+ *         description: No autorizado.
+ */
+app.get('/api/admin/compras-totales', authenticateToken, async (req, res) => {
+    if (req.user.type !== 'Tienda' && req.user.type !== 'admin') {
+        return res.status(403).json({ error: 'No autorizado. Se requieren permisos de Tienda/Administración.' });
+    }
+
+    const session = driver.session();
+    try {
+        const credentials = Buffer.from('ck_your_woocommerce_consumer_key_placeholder:cs_your_woocommerce_consumer_secret_placeholder').toString('base64');
+        const wooUrl = 'https://alda.com.pe/wp-json/wc/v3/orders';
+        
+        console.log(`[Admin Dashboard API] Consultando últimas 100 órdenes de WooCommerce...`);
+        let wooOrders = [];
+        try {
+            const response = await axios.get(wooUrl, {
+                params: { per_page: 100 },
+                headers: { 'Authorization': `Basic ${credentials}` },
+                timeout: 5000 // 5 segundos de timeout
+            });
+            wooOrders = response.data;
+        } catch (wooError) {
+            console.warn('[Admin Dashboard API] Falló WooCommerce, usando Mock Data para la demo...', wooError.message);
+            // Fallback para la demo si WooCommerce falla
+            wooOrders = [
+                {
+                    id: 9991,
+                    billing: { first_name: "Usuario", last_name: "Demo" },
+                    meta_data: [{ key: "_billing_taxable", value: "00792282" }],
+                    date_created: new Date().toISOString(),
+                    currency: "PEN",
+                    total: "250.00",
+                    line_items: [
+                        { name: "Billetera Alda Premium", sku: "ALD-PREM-001", quantity: 1, price: 250, image: { src: "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero.png" } }
+                    ]
+                },
+                {
+                    id: 9992,
+                    billing: { first_name: "Demo", last_name: "Tienda" },
+                    meta_data: [{ key: "_billing_taxable", value: "74629527" }],
+                    date_created: new Date().toISOString(),
+                    currency: "PEN",
+                    total: "120.00",
+                    line_items: [
+                        { name: "Monedero Cuero Genuino", sku: "ALD-MON-002", quantity: 1, price: 120, image: { src: "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero.png" } }
+                    ]
+                }
+            ];
+        }
+
+        const purchases = [];
+        for (const order of wooOrders) {
+            const nombreCliente = `${order.billing.first_name} ${order.billing.last_name}`.trim() || 'Cliente';
+            const dniDoc = order.meta_data.find(m => m.key === '_billing_taxable');
+            const dni = dniDoc ? dniDoc.value : 'No especificado';
+            const fecha = order.date_created ? order.date_created.split('T')[0] : 'Fecha no especificada';
+            const moneda = order.currency === 'PEN' ? 'S/' : (order.currency === 'USD' ? '$' : order.currency);
+            
+            for (const item of order.line_items) {
+                const sku = item.sku || 'Sin SKU';
+                
+                // Consultar en Neo4j si existe el producto y tiene NFT
+                const cypher = `
+                    MATCH (p:Producto {SKU_Producto_Final: $sku})
+                    RETURN p.nft_token_id AS nft_token_id
+                `;
+                
+                const dbResult = await session.run(cypher, { sku });
+                let registrado = false;
+                let nft_token_id = null;
+                
+                if (dbResult.records.length > 0) {
+                    nft_token_id = dbResult.records[0].get('nft_token_id');
+                    if (nft_token_id !== null && nft_token_id !== undefined) {
+                        registrado = true;
+                    }
+                }
+
+                purchases.push({
+                    "order_id": order.id,
+                    "Nombre Cliente": nombreCliente,
+                    "DNI": dni,
+                    "F. Emision": fecha,
+                    "Moneda": moneda,
+                    "Total Item": item.total,
+                    "Item": item.name,
+                    "SKU": sku,
+                    "Cantidad": item.quantity,
+                    "Precio Unitario": item.price,
+                    "Foto_Producto": item.image && item.image.src ? item.image.src : null,
+                    "registrado": registrado,
+                    "nft_token_id": nft_token_id
+                });
+            }
+        }
+
+        return res.status(200).json(purchases);
+    } catch (error) {
+        console.error('[Admin Dashboard API] Error:', error.message);
+        return res.status(500).json({ error: 'Error al consultar órdenes y estados.' });
     } finally {
         await session.close();
     }
