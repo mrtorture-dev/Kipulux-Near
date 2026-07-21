@@ -3,3 +3,13 @@ package-lock.json
 *.log
 .env
 .DS_Store
+
+# Build outputs
+artifacts/
+cache/
+
+# Agent metadata
+.agents/
+
+# Uploaded test files
+public/uploads/

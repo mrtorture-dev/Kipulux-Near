@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-neutral-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kipulux - Pasaporte Digital & Trazabilidad Premium</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        serif: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        gold: {
+                            50: '#fdfbeb',
+                            100: '#fbf7c7',
+                            200: '#f6ee90',
+                            300: '#f0df51',
+                            400: '#eac923',
+                            500: '#d4aa12',
+                            600: '#b4840d',
+                            700: '#905e0f',
+                            800: '#764c12',
+                            900: '#643f14',
+                            950: '#3a2007',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+        .title-serif {
+            font-family: 'Montserrat', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(18, 18, 18, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-gold {
+            box-shadow: 0 0 25px rgba(212, 170, 18, 0.15);
+        }
+        .glow-gold-strong {
+            box-shadow: 0 0 35px rgba(212, 170, 18, 0.35);
+        }
+    </style>
+</head>
+<body class="h-full text-neutral-100 flex flex-col justify-between selection:bg-gold-500 selection:text-neutral-950">
+
+    <!-- Background decorative gradients -->
+    <div class="fixed inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-gold-950/15 blur-[120px]"></div>
+        <div class="absolute -bottom-[30%] -right-[20%] w-[70%] h-[70%] rounded-full bg-amber-950/10 blur-[120px]"></div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-neutral-900 bg-neutral-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="goToHome()">
+                <img src="logo.jpg" class="h-12 w-auto object-contain rounded-md" alt="Alda Logo">
+                <div>
+                    <h1 class="title-serif text-xl font-bold tracking-widest text-neutral-100">KIPU<span class="text-gold-500">LUX</span></h1>
+                    <p class="text-[9px] uppercase tracking-widest text-gold-500/80 font-semibold">Trazabilidad & Excelencia</p>
+                </div>
+            </div>
+
+            <!-- Header Menu / Auth status -->
+            <div class="flex items-center space-x-4">
+                <div id="user-badge" class="hidden flex items-center space-x-2 bg-neutral-900/80 px-3 py-1.5 rounded-full border border-neutral-800 text-xs">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-gold-500 animate-pulse"></span>
+                    <span id="badge-role" class="font-semibold text-gold-500 uppercase tracking-wider">Artesano</span>
+                    <span id="badge-id" class="text-neutral-400 border-l border-neutral-800 pl-2">20555444333</span>
+                </div>
+                <button id="logout-btn" onclick="logout()" class="hidden text-xs text-neutral-400 hover:text-white px-3 py-1.5 rounded-md hover:bg-neutral-900 border border-transparent hover:border-neutral-800 transition">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ALERTS CONTAINER (FLOATING) -->
+        <div id="alert-box" class="hidden fixed bottom-5 right-5 z-50 max-w-md w-full glass-panel rounded-lg shadow-xl p-4 transition-all duration-300 transform translate-y-10 opacity-0 border-l-4">
+            <div class="flex items-start">
+                <div class="flex-shrink-0" id="alert-icon"></div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-semibold text-neutral-100" id="alert-title"></p>
+                    <p class="mt-1 text-xs text-neutral-400" id="alert-desc"></p>
+                </div>
+                <div class="ml-4 flex-shrink-0 flex">
+                    <button onclick="dismissAlert()" class="text-neutral-500 hover:text-neutral-300">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. LOGIN VIEW -->
+        <section id="view-login" class="max-w-md mx-auto my-12 transition duration-300">
+            <div class="glass-panel rounded-2xl p-8 glow-gold">
+                <div class="text-center mb-8">
+                    <h2 class="title-serif text-2xl font-bold tracking-tight text-neutral-100">Iniciar Sesión</h2>
+                    <p class="text-sm text-neutral-400 mt-2">Accede al pasaporte digital de Kipulux</p>
+                </div>
+
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-6">
+                    <div>
+                        <label for="login-identifier" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Usuario o Correo Electrónico</label>
+                        <input type="text" id="login-identifier" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="ej: artesano_cusco o tienda.cusco@kipulux.com">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Contraseña</label>
+                        <input type="password" id="login-password" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-gold-600 to-gold-500 text-neutral-950 hover:from-gold-500 hover:to-gold-400 font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-gold-500/20 active:scale-95 transition text-sm tracking-wide uppercase">
+                        Autenticar
+                    </button>
+                </form>
+
+                <!-- Helper defaults -->
+                <div class="mt-6 pt-6 border-t border-neutral-900 text-center">
+                    <p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-3">Accesos rápidos de prueba</p>
+                    <div class="flex flex-wrap justify-center gap-2">
+                        <button onclick="fillLogin('tienda_cusco', 'Tienda123!')" class="text-[11px] bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-full transition">
+                            Tienda Cusco
+                        </button>
+                        <button onclick="fillLogin('artesano_cusco', 'Artesano123!')" class="text-[11px] bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-full transition">
+                            Artesano Cusco
+                        </button>
+                        <button onclick="fillLogin('cliente_juan', 'Cliente123!')" class="text-[11px] bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-full transition">
+                            Cliente Juan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. DASHBOARD VIEW (CONTENEDOR DE PANELES CON TABS) -->
+        <section id="view-dashboard" class="hidden space-y-8 transition duration-300">
+            <!-- TABS NAVIGATION -->
+            <div class="border-b border-neutral-900 flex space-x-6 overflow-x-auto pb-px" id="dashboard-tabs">
+                <!-- Tabs will be injected and selected dynamically -->
+            </div>
+
+            <!-- TABS PANELS CONTENT -->
+            <div class="space-y-8" id="dashboard-panels">
+                
+                <!-- ================= ARTESANO PANEL ================= -->
+                <div id="panel-artesano" class="hidden space-y-8 animate-fadeIn">
+                    <!-- Banner -->
+                    <div class="glass-panel rounded-2xl p-6 glow-gold flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 class="title-serif text-xl font-bold text-gold-500">Módulo de Manufactura Artesanal</h3>
+                            <p class="text-sm text-neutral-400 mt-1">Registra y acuña las prendas de cuero premium. Genera el pasaporte digital en la blockchain.</p>
+                        </div>
+                        <div class="flex-shrink-0 self-start md:self-auto bg-neutral-950 px-4 py-2.5 rounded-xl border border-neutral-900 text-xs">
+                            <span class="text-neutral-500 block uppercase tracking-wider">Estado Operativo</span>
+                            <span class="font-bold text-green-500 flex items-center gap-1.5 mt-0.5">
+                                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> CONECTADO A BLOCKCHAIN
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Form 1: Crear Prenda (Fase A) -->
+                        <div class="glass-panel rounded-2xl p-6 space-y-6">
+                            <div class="border-b border-neutral-900 pb-4">
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">1. Registro de Prenda (Fase A)</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Carga los archivos binarios IPFS y realiza el Mint del NFT.</p>
+                            </div>
+                            <form id="form-crear-producto" onsubmit="handleCrearProducto(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU del Producto Final</label>
+                                    <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: KIPU-CUERO-004">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">ID Lote de Cuero Utilizado</label>
+                                    <input type="text" name="ID_Lote_Cuero_Utilizado" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: LOTE-NIETO-003">
+                                </div>
+                                
+                                <!-- File uploads -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 flex flex-col justify-between h-36">
+                                        <span class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">Foto del Producto</span>
+                                        <div class="mt-2">
+                                            <input type="file" id="file-foto" name="Foto_Producto" accept="image/*" class="hidden" onchange="updateFileNameDisplay('file-foto', 'foto-display')">
+                                            <button type="button" onclick="document.getElementById('file-foto').click()" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-xs py-2 px-3 rounded-lg text-neutral-300 transition hover:border-gold-500/50">
+                                                Seleccionar Foto
+                                            </button>
+                                        </div>
+                                        <span id="foto-display" class="text-[10px] text-neutral-500 truncate block mt-1">Sin archivo seleccionado</span>
+                                    </div>
+
+                                    <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 flex flex-col justify-between h-36">
+                                        <span class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">PDF Certificado Previo</span>
+                                        <div class="mt-2">
+                                            <input type="file" id="file-pdf" name="PDF_Certificado_Previo" accept="application/pdf" class="hidden" onchange="updateFileNameDisplay('file-pdf', 'pdf-display')">
+                                            <button type="button" onclick="document.getElementById('file-pdf').click()" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-xs py-2 px-3 rounded-lg text-neutral-300 transition hover:border-gold-500/50">
+                                                Seleccionar PDF
+                                            </button>
+                                        </div>
+                                        <span id="pdf-display" class="text-[10px] text-neutral-500 truncate block mt-1">Sin archivo seleccionado</span>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                    Registrar y Mintear NFT (IPFS)
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Form 2: Transferencia B2B (Fase B) -->
+                        <div class="glass-panel rounded-2xl p-6 space-y-6">
+                            <div class="border-b border-neutral-900 pb-4">
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">2. Despacho y Transferencia B2B (Fase B)</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Transfiere la custodia digital y física del NFT de la prenda a la Tienda de destino.</p>
+                            </div>
+                            <form id="form-transferir-tienda" onsubmit="handleTransferirTienda(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU del Producto</label>
+                                    <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: KIPU-CUERO-004">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">RUC de la Tienda Destino</label>
+                                    <input type="text" name="RUC_Tienda_Destino" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: 20600123456">
+                                </div>
+                                <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-gold-500/50 text-gold-500 hover:text-gold-400 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                    Transferir Custodia NFT
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TIENDA PANEL ================= -->
+                <div id="panel-tienda" class="hidden space-y-8 animate-fadeIn">
+                    <!-- Banner -->
+                    <div class="glass-panel rounded-2xl p-6 glow-gold">
+                        <h3 class="title-serif text-xl font-bold text-gold-500">Módulo de Comercialización & Onboarding</h3>
+                        <p class="text-sm text-neutral-400 mt-1">Registra nuevos artesanos en la red y procesa las ventas B2C a clientes finales.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Form 1: Registrar Artesano -->
+                        <div class="glass-panel rounded-2xl p-6 space-y-6">
+                            <div class="border-b border-neutral-900 pb-4">
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">1. Onboarding de Artesano</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Registra un taller artesano en Neo4j y la blockchain.</p>
+                            </div>
+                            <form id="form-registrar-artesano" onsubmit="handleRegistrarArtesano(event)" class="space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">RUC del Fabricante</label>
+                                        <input type="text" name="RUC_Fabricante" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="11 dígitos" maxlength="11" pattern="\d{11}">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Nombre del Taller</label>
+                                        <input type="text" name="nombre_taller" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="Mínimo 3 caracteres">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Correo Electrónico</label>
+                                        <input type="email" name="email" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: taller@empresa.com">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Ubigeo (6 dígitos)</label>
+                                        <input type="text" name="ubigeo" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="080101" maxlength="6" pattern="\d{6}">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                    Registrar Artesano
+                                </button>
+                            </form>
+
+                            <!-- Success box inside the artisan form for credentials display -->
+                            <div id="artisan-credentials-box" class="hidden bg-emerald-950/60 border border-emerald-800 rounded-xl p-4 space-y-3">
+                                <div class="flex items-center space-x-2 text-emerald-400 text-sm font-semibold">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span>¡Artesano Registrado Exitosamente!</span>
+                                </div>
+                                <div class="text-xs text-neutral-300 space-y-1.5 font-mono">
+                                    <p><strong class="text-neutral-400 font-sans">Usuario:</strong> <span id="cred-user" class="text-emerald-300 font-bold bg-neutral-950/50 px-1.5 py-0.5 rounded border border-neutral-900"></span></p>
+                                    <p><strong class="text-neutral-400 font-sans">Contraseña:</strong> <span id="cred-pass" class="text-emerald-300 font-bold bg-neutral-950/50 px-1.5 py-0.5 rounded border border-neutral-900"></span></p>
+                                    <p><strong class="text-neutral-400 font-sans">Dirección Wallet EVM:</strong> <span id="cred-wallet" class="text-emerald-400 text-[10px] break-all block mt-0.5 bg-neutral-950/50 p-1.5 rounded border border-neutral-900"></span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form 2: Venta B2C (Fase C) -->
+                        <div class="glass-panel rounded-2xl p-6 space-y-6">
+                            <div class="border-b border-neutral-900 pb-4">
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">2. Venta Final B2C (Fase C)</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Registra la factura de SUNAT y vende el NFT al comprador final.</p>
+                            </div>
+                            <form id="form-vender-producto" onsubmit="handleVenderProducto(event)" class="space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU Producto Final</label>
+                                        <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: KIPU-CUERO-001">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">DNI/RUC del Comprador</label>
+                                        <input type="text" name="DNI_O_RUC_Comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="8 u 11 dígitos">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Número de Boleta/Factura</label>
+                                        <input type="text" name="Nro_Comprobante_Pago" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: B001-00029384" pattern="^[BF][A-Z0-9]{3}-\d+$">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Wallet EVM Comprador</label>
+                                        <input type="text" name="wallet_address_comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="0x..." pattern="^0x[0-9a-fA-F]{40}$">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">XML de SUNAT Simulado</label>
+                                        <div>
+                                            <input type="file" id="file-xml" accept="text/xml,application/xml" class="hidden" onchange="readXmlFile(event)">
+                                            <button type="button" onclick="document.getElementById('file-xml').click()" class="text-[10px] text-gold-500 hover:text-gold-400 underline font-semibold focus:outline-none">
+                                                Cargar XML desde Archivo
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <textarea id="xml-textarea" name="xml_boleta" required rows="3" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-xs font-mono text-neutral-350 focus:outline-none focus:border-gold-500" placeholder="&lt;invoice&gt;&lt;detail&gt;prenda premium&lt;/detail&gt;&lt;/invoice&gt;"></textarea>
+                                </div>
+
+                                <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                    Registrar Venta & Transferir NFT
+                                </button>
+                            </form>
+                    </div>
+
+                    <!-- Módulo de WooCommerce Dashboard -->
+                    <div class="glass-panel rounded-2xl p-6 space-y-6 mt-8">
+                        <div class="border-b border-neutral-900 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <div>
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">Órdenes Recientes de WooCommerce & Certificaciones</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Sincroniza y monitorea las ventas de alda.com.pe y su estado en la Blockchain.</p>
+                            </div>
+                            <button type="button" onclick="loadAdminDashboard()" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-4 rounded-lg text-xs transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 self-start sm:self-auto">
+                                🔄 Sincronizar WooCommerce
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="border-b border-neutral-900 text-neutral-400 uppercase tracking-wider">
+                                        <th class="py-3 px-4">Cliente</th>
+                                        <th class="py-3 px-4">Producto / SKU</th>
+                                        <th class="py-3 px-4 text-center">Fecha</th>
+                                        <th class="py-3 px-4 text-center">Estado Blockchain</th>
+                                        <th class="py-3 px-4 text-right">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-orders-table-body" class="text-neutral-300 divide-y divide-neutral-900">
+                                    <!-- Dynamic rows loaded here -->
+                                    <tr>
+                                        <td colspan="5" class="py-8 text-center text-neutral-500">
+                                            Haz clic en "Sincronizar WooCommerce" para cargar las órdenes.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div id="admin-orders-empty" class="text-center py-8 text-neutral-500 hidden">
+                                No se encontraron órdenes recientes en WooCommerce.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= CLIENTE PANEL ================= -->
+                <div id="panel-cliente" class="hidden space-y-8 animate-fadeIn">
+                    <!-- Banner & Search SKU -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Banner -->
+                        <div class="glass-panel rounded-2xl p-6 glow-gold lg:col-span-1 flex flex-col justify-center">
+                            <h3 class="title-serif text-xl font-bold text-gold-500">Pasaporte Digital de Colección</h3>
+                            <p class="text-sm text-neutral-400 mt-2">Consulta el origen certificado, la genealogía inmutable de cueros y el estado legal de tus prendas.</p>
+                        </div>
+
+                        <!-- Search Box -->
+                        <div class="glass-panel rounded-2xl p-6 lg:col-span-2 space-y-4">
+                            <h4 class="title-serif text-sm font-semibold text-neutral-200 uppercase tracking-wider">Buscar Pasaporte Digital de Producto</h4>
+                            <form id="form-buscar-sku" onsubmit="handleBuscarSku(event)" class="flex gap-2">
+                                <input type="text" id="input-search-sku" required class="flex-grow bg-neutral-950 border border-neutral-850 rounded-lg px-4 py-2.5 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="Escribe el SKU (ej: KIPU-CUERO-001)">
+                                <button type="submit" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold px-6 py-2.5 rounded-lg text-sm transition active:scale-95 uppercase tracking-wider">
+                                    Buscar
+                                </button>
+                            </form>
+                            <p class="text-[10px] text-neutral-500">Nota: Por control BOLA de seguridad, solo el comprador del NFT puede consultar la genealogía y trazabilidad del SKU correspondiente.</p>
+                        </div>
+                    </div>
+
+                    <!-- Trazabilidad / Genealogy Tree (Dynamic display when searched) -->
+                    <div id="genealogy-tree-box" class="hidden glass-panel rounded-2xl p-6 space-y-6 animate-fadeIn">
+                        <div class="border-b border-neutral-900 pb-4 flex items-center justify-between">
+                            <div>
+                                <h4 class="title-serif text-lg font-bold text-neutral-100 flex items-center gap-2">
+                                    <svg class="h-5 w-5 text-gold-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Línea de Tiempo del Pasaporte Digital
+                                </h4>
+                                <p class="text-xs text-neutral-400 mt-1">Genealogía de procedencia verificada en Neo4j y la Blockchain.</p>
+                            </div>
+                            <span id="tree-sku-badge" class="bg-gold-950 border border-gold-800 text-gold-400 text-xs font-bold px-3 py-1 rounded-full uppercase">KIPU-CUERO-001</span>
+                        </div>
+
+                        <!-- VERTICAL TIMELINE -->
+                        <div class="relative max-w-2xl mx-auto my-4 pl-8 border-l border-neutral-800 space-y-8">
+                            <!-- Node 1: Lote Cuero Origen -->
+                            <div class="relative">
+                                <!-- Marker -->
+                                <span class="absolute -left-[41px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-neutral-950 border border-gold-500 text-[10px] font-bold text-gold-500">1</span>
+                                <div class="bg-neutral-900/60 border border-neutral-850 p-4 rounded-xl space-y-2">
+                                    <span class="text-[9px] uppercase tracking-wider font-semibold text-neutral-500">Materia Prima Certificada</span>
+                                    <h5 class="text-sm font-semibold text-neutral-200 flex items-center justify-between">
+                                        <span>Genealogía de Lotes de Cuero</span>
+                                        <span class="text-xs text-gold-500 font-mono" id="tree-lote-id">LOTE-NIETO-003</span>
+                                    </h5>
+                                    <!-- Lot ancestors -->
+                                    <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-900 space-y-1.5 text-xs text-neutral-400">
+                                        <p><strong>Curtiembre Proveedora:</strong> RUC <span id="tree-lote-curtiembre">20777888999</span></p>
+                                        <div class="flex items-center justify-between text-[11px] pt-1">
+                                            <span class="text-neutral-500">Cadena de Lotes:</span>
+                                            <span id="tree-lote-ancestry" class="font-mono text-neutral-300">Nieto ➔ Hijo ➔ Padre</span>
+                                        </div>
+                                    </div>
+                                    <!-- PDF certificate previous download -->
+                                    <div id="tree-pdf-lote-container" class="pt-1">
+                                        <!-- Injected via JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Node 2: Taller del Artesano -->
+                            <div class="relative">
+                                <!-- Marker -->
+                                <span class="absolute -left-[41px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-neutral-950 border border-gold-500 text-[10px] font-bold text-gold-500">2</span>
+                                <div class="bg-neutral-900/60 border border-neutral-850 p-4 rounded-xl space-y-2">
+                                    <span class="text-[9px] uppercase tracking-wider font-semibold text-neutral-500">Manufactura y Diseño</span>
+                                    <h5 class="text-sm font-semibold text-neutral-200 flex items-center justify-between">
+                                        <span id="tree-artisan-workshop">Taller Alda Sur - Cusco</span>
+                                        <span class="text-xs text-neutral-400 font-mono">Estado: ORIGINADO</span>
+                                    </h5>
+                                    <p class="text-xs text-neutral-400">Fabricado por el artesano RUC <span id="tree-artisan-ruc" class="font-semibold text-neutral-200">20555444333</span>.</p>
+                                    
+                                    <!-- NFT Image view -->
+                                    <div class="flex items-center gap-3 bg-neutral-950 p-2 rounded-lg border border-neutral-900 mt-2">
+                                        <img id="tree-product-img" src="" alt="Prenda" class="w-12 h-12 object-cover rounded border border-neutral-800">
+                                        <div class="text-[11px] text-neutral-400">
+                                            <p class="font-semibold text-neutral-300">Evidencia Fotográfica IPFS</p>
+                                            <a id="tree-product-img-link" href="" target="_blank" class="text-gold-500 hover:underline">Ver archivo original</a>
+                                        </div>
+                                    </div>
+
+                                    <div id="tree-pdf-prenda-container" class="pt-1">
+                                        <!-- Injected via JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Node 3: Custodia en Tienda -->
+                            <div class="relative">
+                                <!-- Marker -->
+                                <span class="absolute -left-[41px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-neutral-950 border border-gold-500 text-[10px] font-bold text-gold-500">3</span>
+                                <div class="bg-neutral-900/60 border border-neutral-850 p-4 rounded-xl space-y-2">
+                                    <span class="text-[9px] uppercase tracking-wider font-semibold text-neutral-500">Distribución Logística B2B</span>
+                                    <h5 class="text-sm font-semibold text-neutral-200 flex items-center justify-between">
+                                        <span id="tree-tienda-name">Tienda Cusco - Kipulux</span>
+                                        <span class="text-xs text-neutral-400 font-mono">Estado: EN_TIENDA</span>
+                                    </h5>
+                                    <p class="text-xs text-neutral-400">Custodia transferida y NFT resguardado en la tienda RUC <span id="tree-tienda-ruc" class="font-semibold text-neutral-200">20600123456</span>.</p>
+                                </div>
+                            </div>
+
+                            <!-- Node 4: Venta Final con Comprobante -->
+                            <div class="relative">
+                                <!-- Marker -->
+                                <span class="absolute -left-[41px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-neutral-950 border border-gold-500 text-[10px] font-bold text-gold-500">4</span>
+                                <div class="bg-neutral-900/60 border border-neutral-850 p-4 rounded-xl space-y-2">
+                                    <span class="text-[9px] uppercase tracking-wider font-semibold text-neutral-500">Comercialización Final B2C</span>
+                                    <h5 class="text-sm font-semibold text-neutral-250 flex items-center justify-between">
+                                        <span>Adquisición & Certificación SUNAT</span>
+                                        <span class="text-xs text-green-500 font-bold font-mono">VENDIDO</span>
+                                    </h5>
+                                    <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-900 space-y-1 text-xs text-neutral-400 font-mono">
+                                        <p><strong class="text-neutral-500 font-sans">Boleta:</strong> <span id="tree-comprobante-nro">B001-00029384</span></p>
+                                        <p><strong class="text-neutral-500 font-sans">Hash Comprobante:</strong> <span id="tree-comprobante-hash" class="text-[10px] break-all"></span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Purchases History Grid -->
+                    <div class="space-y-4">
+                        <h4 class="title-serif text-lg font-bold text-gold-500">Tus Adquisiciones Certificadas</h4>
+                        <div id="purchases-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Cards will be injected via JS -->
+                        </div>
+                        <div id="purchases-empty" class="hidden text-center py-12 glass-panel rounded-2xl border-dashed border-2 border-neutral-800">
+                            <svg class="mx-auto h-12 w-12 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            <h3 class="mt-2 text-sm font-semibold text-neutral-300">Sin compras registradas</h3>
+                            <p class="mt-1 text-xs text-neutral-500">No se encontraron productos certificados vinculados a tu cuenta.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FLOATING SEEDER BUTTON -->
+    <div class="fixed bottom-5 left-5 z-40">
+        <button onclick="seedDatabase()" id="btn-seed" class="flex items-center space-x-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-gold-500/50 text-gold-500 px-4 py-2.5 rounded-full shadow-lg transition text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
+            <span>Sembrar Base de Datos Neo4j</span>
+        </button>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-neutral-900 bg-neutral-950/80 backdrop-blur-md py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-4">
+            <p>&copy; 2026 KIPULUX. Todos los derechos reservados. Tecnología Web2.5 & Blockchain zkSyscoin.</p>
+            <div class="flex space-x-6">
+                <a href="/api-docs" target="_blank" class="hover:text-gold-500 transition">Documentación API (Swagger UI)</a>
+                <span class="text-neutral-800">|</span>
+                <span class="text-neutral-600">IPFS Local Mock Activo</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- CLIENT LOGIC JAVASCRIPT -->
+    <script>
+        // State variables
+        let currentUser = null; // Decoded payload of JWT
+        const API_BASE = window.location.origin + '/api';
+
+        // Initialize App on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+        });
+
+        // 1. AUTHENTICATION & SESSION MANAGEMENT
+        function checkAuth() {
+            const token = localStorage.getItem('accessToken');
+            if (token) {
+                const payload = decodeJWT(token);
+                if (payload && payload.DNI_O_RUC) {
+                    currentUser = payload;
+                    showDashboard();
+                    return;
+                }
+            }
+            // If no token or invalid, show login
+            showLoginView();
+        }
+
+        function decodeJWT(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error("JWT decode error:", e);
+                localStorage.removeItem('accessToken');
+                return null;
+            }
+        }
+
+        function fillLogin(identifier, password) {
+            document.getElementById('login-identifier').value = identifier;
+            document.getElementById('login-password').value = password;
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const identifier = document.getElementById('login-identifier').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/mock-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Credenciales incorrectas');
+                }
+
+                // Save token & info
+                localStorage.setItem('accessToken', data.accessToken);
+                currentUser = decodeJWT(data.accessToken);
+
+                showAlert('success', 'Sesión Iniciada', `Autenticado con éxito como ${data.type}`);
+                showDashboard();
+
+            } catch (err) {
+                showAlert('error', 'Error de Autenticación', err.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('accessToken');
+            currentUser = null;
+            showAlert('info', 'Sesión Cerrada', 'Has salido del sistema de forma segura.');
+            showLoginView();
+        }
+
+        function goToHome() {
+            checkAuth();
+        }
+
+        // 2. VIEW NAVIGATION CONTROLLERS
+        function showLoginView() {
+            document.getElementById('view-login').classList.remove('hidden');
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('user-badge').classList.add('hidden');
+            document.getElementById('logout-btn').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            document.getElementById('logout-btn').classList.remove('hidden');
+            
+            // Setup User badge
+            const badge = document.getElementById('user-badge');
+            badge.classList.remove('hidden');
+            document.getElementById('badge-role').textContent = currentUser.type;
+            document.getElementById('badge-id').textContent = currentUser.DNI_O_RUC;
+
+            // Render navigation tabs based on user role
+            renderTabs();
+        }
+
+        // Render Tabs and select primary panel (Restringido por Rol)
+        function renderTabs() {
+            const tabsNav = document.getElementById('dashboard-tabs');
+            tabsNav.innerHTML = ''; // Clear
+
+            // Solo mostramos la pestaña del rol correspondiente para evitar fugas de acceso
+            const role = currentUser.type; // 'Artesano', 'Tienda', 'Cliente'
+            
+            const tabBtn = document.createElement('button');
+            tabBtn.className = 'whitespace-nowrap pb-4 px-1 border-b-2 font-bold text-sm transition focus:outline-none border-gold-500 text-gold-500';
+            tabBtn.id = `tab-btn-${role.toLowerCase()}`;
+            tabBtn.textContent = `Panel ${role}`;
+            tabBtn.onclick = () => selectTab(role);
+            tabsNav.appendChild(tabBtn);
+
+            // Select default tab
+            selectTab(role);
+        }
+
+        function selectTab(roleName) {
+            // Hide all panels
+            document.getElementById('panel-artesano').classList.add('hidden');
+            document.getElementById('panel-tienda').classList.add('hidden');
+            document.getElementById('panel-cliente').classList.add('hidden');
+
+            // Deactivate all tab buttons styles
+            ['artesano', 'tienda', 'cliente'].forEach(role => {
+                const btn = document.getElementById(`tab-btn-${role}`);
+                if (btn) {
+                    btn.className = "whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition focus:outline-none border-transparent text-neutral-400 hover:text-neutral-200 hover:border-neutral-850";
+                }
+            });
+
+            // Show selected panel
+            const panelId = `panel-${roleName.toLowerCase()}`;
+            const targetPanel = document.getElementById(panelId);
+            if (targetPanel) {
+                targetPanel.classList.remove('hidden');
+            }
+
+            // Highlight selected tab button
+            const activeBtn = document.getElementById(`tab-btn-${roleName.toLowerCase()}`);
+            if (activeBtn) {
+                activeBtn.className = "whitespace-nowrap pb-4 px-1 border-b-2 font-bold text-sm transition focus:outline-none border-gold-500 text-gold-500";
+            }
+
+            // Trigger fetch data for the specific panel if needed
+            if (roleName === 'Cliente') {
+                fetchClientPurchases();
+            } else if (roleName === 'Tienda') {
+                loadAdminDashboard();
+            }
+        }
+
+        // 3. ARTESANO FLOW (Crear y Transferir)
+        async function handleCrearProducto(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('accessToken');
+            const form = document.getElementById('form-crear-producto');
+            const formData = new FormData(form);
+
+            // Manual file verification since Option 2 specifies manual file validation
+            const fileFoto = document.getElementById('file-foto').files[0];
+            const filePdf = document.getElementById('file-pdf').files[0];
+
+            if (!fileFoto) {
+                showAlert('error', 'Falta Foto', 'Por favor, selecciona una foto del producto.');
+                return;
+            }
+            if (!filePdf) {
+                showAlert('error', 'Falta Certificado PDF', 'Por favor, selecciona el certificado previo en formato PDF.');
+                return;
+            }
+
+            try {
+                showAlert('info', 'Registrando Prenda', 'Subiendo archivos a local IPFS y acuñando NFT en la blockchain...');
+                const res = await fetch(`${API_BASE}/productos/crear`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                        // Note: Do NOT set Content-Type header when sending FormData! The browser sets it automatically with the multipart boundary.
+                    },
+                    body: formData
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error al registrar prenda');
+                }
+
+                showAlert('success', 'Registro Exitoso', `Prenda registrada con SKU: ${data.SKU_Producto_Final}. NFT TokenID: ${data.tokenId}.`);
+                form.reset();
+                document.getElementById('foto-display').textContent = 'Sin archivo seleccionado';
+                document.getElementById('pdf-display').textContent = 'Sin archivo seleccionado';
+
+            } catch (err) {
+                showAlert('error', 'Fallo al Crear Prenda', err.message);
+            }
+        }
+
+        async function handleTransferirTienda(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('accessToken');
+            const form = document.getElementById('form-transferir-tienda');
+            const sku = form.querySelector('[name="SKU_Producto_Final"]').value;
+            const ruc = form.querySelector('[name="RUC_Tienda_Destino"]').value;
+
+            try {
+                showAlert('info', 'Procesando Transferencia B2B', 'Relayando transacción de transferencia de NFT a la Tienda...');
+                const res = await fetch(`${API_BASE}/productos/transferir-a-tienda`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ SKU_Producto_Final: sku, RUC_Tienda_Destino: ruc })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error en transferencia B2B');
+                }
+
+                showAlert('success', 'Transferencia Confirmada', `Custodia del SKU ${sku} transferida con éxito a la Tienda.`);
+                form.reset();
+
+            } catch (err) {
+                showAlert('error', 'Fallo de Transferencia', err.message);
+            }
+        }
+
+        // Display selected files in form UI
+        function updateFileNameDisplay(inputId, displayId) {
+            const input = document.getElementById(inputId);
+            const display = document.getElementById(displayId);
+            if (input.files && input.files[0]) {
+                display.textContent = input.files[0].name;
+                display.className = "text-[10px] text-gold-400 font-semibold truncate block mt-1";
+            } else {
+                display.textContent = 'Sin archivo seleccionado';
+                display.className = "text-[10px] text-neutral-500 truncate block mt-1";
+            }
+        }
+
+        // 4. TIENDA FLOW (Onboarding y Venta)
+        async function handleRegistrarArtesano(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('accessToken');
+            const form = document.getElementById('form-registrar-artesano');
+            const ruc = form.querySelector('[name="RUC_Fabricante"]').value;
+            const taller = form.querySelector('[name="nombre_taller"]').value;
+            const email = form.querySelector('[name="email"]').value;
+            const ubigeo = form.querySelector('[name="ubigeo"]').value;
+
+            const credentialsBox = document.getElementById('artisan-credentials-box');
+            credentialsBox.classList.add('hidden');
+
+            try {
+                showAlert('info', 'Registrando Artesano', 'Creando cuenta, cifrando llaves privadas en KMS y persistiendo en el grafo...');
+                const res = await fetch(`${API_BASE}/tiendas/registrar-artesano`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ RUC_Fabricante: ruc, nombre_taller: taller, email, ubigeo })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error al registrar artesano');
+                }
+
+                showAlert('success', 'Onboarding Finalizado', `Artesano registrado exitosamente.`);
+                
+                // Show credentials in green card
+                document.getElementById('cred-user').textContent = data.credentials.username;
+                document.getElementById('cred-pass').textContent = data.credentials.password;
+                document.getElementById('cred-wallet').textContent = data.credentials.eth_address;
+                credentialsBox.classList.remove('hidden');
+                
+                form.reset();
+
+            } catch (err) {
+                showAlert('error', 'Error de Onboarding', err.message);
+            }
+        }
+
+        async function handleVenderProducto(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('accessToken');
+            const form = document.getElementById('form-vender-producto');
+            
+            const sku = form.querySelector('[name="SKU_Producto_Final"]').value;
+            const compradorDni = form.querySelector('[name="DNI_O_RUC_Comprador"]').value;
+            const comprobante = form.querySelector('[name="Nro_Comprobante_Pago"]').value;
+            const wallet = form.querySelector('[name="wallet_address_comprador"]').value;
+            const xml = document.getElementById('xml-textarea').value;
+
+            try {
+                showAlert('info', 'Registrando Venta B2C', 'Firmando transacción de venta, calculando Hash de XML y transfiriendo NFT...');
+                const res = await fetch(`${API_BASE}/productos/vender`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        SKU_Producto_Final: sku,
+                        DNI_O_RUC_Comprador: compradorDni,
+                        Nro_Comprobante_Pago: comprobante,
+                        wallet_address_comprador: wallet,
+                        xml_boleta: xml
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error al procesar venta');
+                }
+
+                showAlert('success', 'Venta Certificada', `Venta registrada con éxito. NFT transferido al comprador.`);
+                form.reset();
+
+            } catch (err) {
+                showAlert('error', 'Fallo en Venta', err.message);
+            }
+        }
+
+        // Helper to read local XML file and fill textarea
+        function readXmlFile(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    document.getElementById('xml-textarea').value = evt.target.result;
+                    showAlert('info', 'XML Cargado', `Contenido de ${file.name} inyectado.`);
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // 5. CLIENTE FLOW (Historial de Compras y Buscador de Trazabilidad)
+        async function fetchClientPurchases() {
+            const token = localStorage.getItem('accessToken');
+            const grid = document.getElementById('purchases-grid');
+            const emptyState = document.getElementById('purchases-empty');
+            grid.innerHTML = '';
+            emptyState.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/clientes/historial-compras`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('No se pudo obtener el historial de compras.');
+                }
+
+                const data = await res.json();
+                let productCount = 0;
+
+                data.forEach(shopGroup => {
+                    const shopName = shopGroup.nombre_tienda || `Tienda RUC ${shopGroup.id_tienda}`;
+                    
+                    shopGroup.productos.forEach(prod => {
+                        productCount++;
+                        // Resolve image URL
+                        const imgSrc = prod.Foto_Producto.startsWith('http') ? prod.Foto_Producto : prod.Foto_Producto;
+                        
+                        const card = document.createElement('div');
+                        card.className = "glass-panel rounded-2xl overflow-hidden shadow-lg border border-neutral-900 group hover:border-gold-500/40 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-gold-500/5 flex flex-col justify-between";
+                        
+                        // Construct card html
+                        card.innerHTML = `
+                            <div>
+                                <div class="relative h-48 w-full bg-neutral-950 overflow-hidden border-b border-neutral-900">
+                                    <img src="${imgSrc}" alt="${prod.SKU_Producto_Final}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500" onerror="this.src='https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&q=80&w=600'">
+                                    <span class="absolute top-3 right-3 bg-neutral-950/80 backdrop-blur text-gold-500 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border border-gold-500/20">${prod.status}</span>
+                                </div>
+                                <div class="p-5 space-y-2">
+                                    <span class="text-[9px] uppercase tracking-wider font-semibold text-neutral-500">Adquirido en ${shopName}</span>
+                                    <h4 class="title-serif text-base font-bold text-neutral-100">${prod.SKU_Producto_Final}</h4>
+                                </div>
+                            </div>
+                            <div class="p-5 pt-0 flex gap-2">
+                                <button onclick="searchSkuDirect('${prod.SKU_Producto_Final}')" class="flex-grow bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-3 rounded-lg text-xs transition uppercase tracking-wider">
+                                    Trazabilidad
+                                </button>
+                                ${prod.PDF_Certificado_Previo ? `
+                                <a href="${prod.PDF_Certificado_Previo}" target="_blank" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold px-3 py-2 rounded-lg text-xs transition uppercase tracking-wider flex items-center justify-center">
+                                    Certificado
+                                </a>
+                                ` : ''}
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                });
+
+                if (productCount === 0) {
+                    emptyState.classList.remove('hidden');
+                }
+
+            } catch (err) {
+                showAlert('error', 'Error de Historial', err.message);
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        function searchSkuDirect(sku) {
+            document.getElementById('input-search-sku').value = sku;
+            document.getElementById('form-buscar-sku').dispatchEvent(new Event('submit'));
+            // Scroll to search area smoothly
+            document.getElementById('genealogy-tree-box').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function handleBuscarSku(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('accessToken');
+            const sku = document.getElementById('input-search-sku').value.trim();
+            const treeBox = document.getElementById('genealogy-tree-box');
+
+            try {
+                showAlert('info', 'Consultando Pasaporte', `Buscando trazabilidad del SKU ${sku}...`);
+                const res = await fetch(`${API_BASE}/productos/${sku}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'No autorizado o producto no encontrado.');
+                }
+
+                // Render Timeline details
+                document.getElementById('tree-sku-badge').textContent = data.sku;
+                
+                // Milestone 1: Lote
+                const loteInmediato = data.lotes && data.lotes[0] ? data.lotes[0] : null;
+                if (loteInmediato) {
+                    document.getElementById('tree-lote-id').textContent = loteInmediato.ID_Lote_Cuero_Utilizado;
+                    document.getElementById('tree-lote-curtiembre').textContent = loteInmediato.ruc_curtiembre || 'N/A';
+                    
+                    // Show full ancestry sequence text
+                    const lotNames = data.lotes.map(l => l.ID_Lote_Cuero_Utilizado);
+                    document.getElementById('tree-lote-ancestry').textContent = lotNames.join(' ➔ ');
+                    
+                    // Add PDF download link if stage 1/2 cert is there
+                    const pdfLoteContainer = document.getElementById('tree-pdf-lote-container');
+                    pdfLoteContainer.innerHTML = '';
+                    if (loteInmediato.PDF_Certificado_Previo) {
+                        const link = document.createElement('a');
+                        link.href = loteInmediato.PDF_Certificado_Previo.startsWith('http') || loteInmediato.PDF_Certificado_Previo.startsWith('/')
+                            ? loteInmediato.PDF_Certificado_Previo 
+                            : `https://gateway.pinata.cloud/ipfs/${loteInmediato.PDF_Certificado_Previo}`;
+                        link.target = '_blank';
+                        link.className = "inline-flex items-center gap-1.5 text-[11px] text-gold-500 hover:underline mt-1 font-semibold";
+                        link.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Descargar Certificado de Curtido (PDF)`;
+                        pdfLoteContainer.appendChild(link);
+                    }
+                }
+
+                // Milestone 2: Artesano
+                document.getElementById('tree-artisan-workshop').textContent = data.taller_artesano || 'Taller Independiente';
+                document.getElementById('tree-artisan-ruc').textContent = data.RUC_Fabricante || 'N/A';
+                
+                // Prenda PDF
+                const pdfPrendaContainer = document.getElementById('tree-pdf-prenda-container');
+                pdfPrendaContainer.innerHTML = '';
+                if (data.PDF_Certificado_Previo) {
+                    const link = document.createElement('a');
+                    link.href = data.PDF_Certificado_Previo;
+                    link.target = '_blank';
+                    link.className = "inline-flex items-center gap-1.5 text-[11px] text-gold-500 hover:underline mt-2 font-semibold";
+                    link.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Descargar Certificado de Manufactura (PDF)`;
+                    pdfPrendaContainer.appendChild(link);
+                }
+
+                // Product image
+                const productImg = document.getElementById('tree-product-img');
+                const productImgLink = document.getElementById('tree-product-img-link');
+                const resolvedImg = data.Foto_Producto.startsWith('http') ? data.Foto_Producto : data.Foto_Producto;
+                productImg.src = resolvedImg;
+                productImgLink.href = resolvedImg;
+
+                // Milestone 3: Tienda
+                if (data.nombre_tienda || data.id_tienda) {
+                    document.getElementById('tree-tienda-name').textContent = data.nombre_tienda || 'Tienda Asociada';
+                    document.getElementById('tree-tienda-ruc').textContent = data.id_tienda || 'N/A';
+                }
+
+                // Milestone 4: Venta B2C
+                document.getElementById('tree-comprobante-nro').textContent = data.Nro_Comprobante_Pago || 'Sin registrar (En Exhibición)';
+                document.getElementById('tree-comprobante-hash').textContent = data.Hash_Comprobante_Pago || 'Pendiente de venta B2C';
+
+                showAlert('success', 'Pasaporte Resuelto', `Pasaporte Digital para el SKU ${sku} decodificado con éxito.`);
+                treeBox.classList.remove('hidden');
+
+            } catch (err) {
+                showAlert('error', 'Búsqueda Fallida', err.message);
+                treeBox.classList.add('hidden');
+            }
+        }
+
+        // WooCommerce Admin Dashboard Loader
+        async function loadAdminDashboard() {
+            const token = localStorage.getItem('accessToken');
+            const tableBody = document.getElementById('admin-orders-table-body');
+            const emptyState = document.getElementById('admin-orders-empty');
+            
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="py-8 text-center text-neutral-500">
+                        <svg class="h-5 w-5 animate-spin mx-auto text-gold-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
+                        Conectando con WooCommerce alda.com.pe...
+                    </td>
+                </tr>
+            `;
+            if (emptyState) emptyState.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/compras-totales`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Fallo al obtener las órdenes de WooCommerce.');
+                }
+
+                const purchases = await res.json();
+                tableBody.innerHTML = '';
+
+                if (purchases.length === 0) {
+                    if (emptyState) emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                purchases.forEach(p => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-neutral-900/60 hover:bg-neutral-900/20 transition-all";
+                    
+                    const statusBadge = p.registrado 
+                        ? `<span class="bg-emerald-950/80 border border-emerald-800 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Certificado (NFT)</span>`
+                        : `<span class="bg-amber-950/80 border border-amber-800 text-amber-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">En Proceso (Sin NFT)</span>`;
+
+                    const actionBtn = p.registrado
+                        ? `<button onclick="searchSkuDirect('${p.SKU}')" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-1.5 px-3 rounded-lg text-[10px] transition uppercase tracking-wider">Trazabilidad</button>`
+                        : `<button onclick="prepareRegistration('${p.SKU}', '${p.DNI}')" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-1.5 px-3 rounded-lg text-[10px] transition uppercase tracking-wider active:scale-95">Registrar</button>`;
+
+                    row.innerHTML = `
+                        <td class="py-3.5 px-4">
+                            <div class="font-semibold text-neutral-200">${p['Nombre Cliente']}</div>
+                            <div class="text-[10px] text-neutral-500 font-mono">DNI: ${p.DNI}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center space-x-3">
+                                ${p.Foto_Producto ? `<img src="${p.Foto_Producto}" class="w-8 h-8 rounded object-cover border border-neutral-800">` : `<div class="w-8 h-8 rounded bg-neutral-900 border border-neutral-800 flex items-center justify-center text-[10px]">N/A</div>`}
+                                <div>
+                                    <div class="font-semibold text-neutral-200">${p.Item}</div>
+                                    <div class="text-[10px] text-neutral-500 font-mono">SKU: ${p.SKU}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 text-center text-neutral-400 font-mono">${p['F. Emision']}</td>
+                        <td class="py-3.5 px-4 text-center">${statusBadge}</td>
+                        <td class="py-3.5 px-4 text-right">${actionBtn}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                showAlert('success', 'WooCommerce Sincronizado', `Se cargaron ${purchases.length} ítems de venta en tiempo real.`);
+
+            } catch (err) {
+                showAlert('error', 'Error WooCommerce', err.message);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-rose-500">
+                            Fallo al conectar con WooCommerce: ${err.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Rellenar formulario B2C
+        window.prepareRegistration = function(sku, dni) {
+            const form = document.getElementById('form-vender-producto');
+            form.querySelector('[name="SKU_Producto_Final"]').value = sku;
+            form.querySelector('[name="DNI_O_RUC_Comprador"]').value = dni;
+            
+            // Generar número de comprobante aleatorio B001-XXXX
+            const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+            form.querySelector('[name="Nro_Comprobante_Pago"]').value = `B001-${randomNum}`;
+            
+            // Colocar cuenta 0 de Hardhat como default para el comprador local
+            form.querySelector('[name="wallet_address_comprador"]').value = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+            
+            // Simular un XML básico para SUNAT
+            document.getElementById('xml-textarea').value = `<?xml version="1.0" encoding="UTF-8"?>\n<Invoice>\n  <ID>B001-${randomNum}</ID>\n  <IssueDate>${new Date().toISOString().split('T')[0]}</IssueDate>\n  <Customer>\n    <ID schemeID="1">${dni}</ID>\n  </Customer>\n  <LineItem>\n    <SKU>${sku}</SKU>\n    <Description>Prenda Premium ALDA</Description>\n  </LineItem>\n</Invoice>`;
+            
+            showAlert('info', 'Formulario Rellenado', `Datos del SKU ${sku} cargados en el Formulario B2C.`);
+            
+            // Hacer scroll hasta el formulario
+            document.getElementById('form-vender-producto').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        window.loadAdminDashboard = loadAdminDashboard;
+
+        // 6. DEV UTILITY: SEED DATABASE
+        async function seedDatabase() {
+            const btn = document.getElementById('btn-seed');
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg> Sembrando...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/debug/seed`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Error al sembrar DB');
+
+                showAlert('success', 'Grafo Sembrado', `Base de datos restablecida. Nodos: ${data.nodos}, Relaciones: ${data.relaciones}.`);
+                
+                // If logged in, logout to prevent stale session
+                if (currentUser) {
+                    logout();
+                }
+
+            } catch (err) {
+                showAlert('error', 'Fallo de Sembrado', err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg> <span>Sembrar Base de Datos Neo4j</span>`;
+            }
+        }
+
+        // 7. GLOBAL ALERTS SYSTEM
+        let alertTimeout = null;
+        function showAlert(type, title, desc) {
+            const alertBox = document.getElementById('alert-box');
+            const alertTitle = document.getElementById('alert-title');
+            const alertDesc = document.getElementById('alert-desc');
+            const alertIcon = document.getElementById('alert-icon');
+
+            alertTitle.textContent = title;
+            alertDesc.textContent = desc;
+
+            // Set colors & icons based on type
+            alertBox.className = "fixed bottom-5 right-5 z-50 max-w-md w-full glass-panel rounded-xl shadow-xl p-4 border-l-4 transition-all duration-300 transform";
+            
+            if (type === 'success') {
+                alertBox.classList.add('border-emerald-500', 'bg-emerald-950/20');
+                alertIcon.innerHTML = `<svg class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            } else if (type === 'error') {
+                alertBox.classList.add('border-rose-500', 'bg-rose-950/20');
+                alertIcon.innerHTML = `<svg class="h-5 w-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+            } else if (type === 'info') {
+                alertBox.classList.add('border-gold-500', 'bg-gold-950/10');
+                alertIcon.innerHTML = `<svg class="h-5 w-5 text-gold-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            }
+
+            // Animate In
+            alertBox.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+            alertBox.classList.add('translate-y-0', 'opacity-100');
+
+            // Auto-dismiss
+            if (alertTimeout) clearTimeout(alertTimeout);
+            alertTimeout = setTimeout(() => {
+                dismissAlert();
+            }, 6000);
+        }
+
+        function dismissAlert() {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.classList.remove('translate-y-0', 'opacity-100');
+            alertBox.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => {
+                alertBox.classList.add('hidden');
+            }, 300);
+        }
+    </script>
+</body>
+</html>

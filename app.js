@@ -11,7 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal Elements
     const certModal = document.getElementById('cert-modal');
     const closeBtn = document.querySelector('.close-btn');
-    const certModalBody = document.getElementById('cert-modal-body');    let purchasesData = {};
+    const certModalBody = document.getElementById('cert-modal-body');    
+    let purchasesData = {};
+    let activePurchases = [];
 
     // Cargar los datos del JSON
     // Asumimos que el script de python generó compras.json en el mismo directorio
@@ -58,13 +60,48 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Buscar en la data cargada
-        if (purchasesData[dni]) {
-            const userPurchases = purchasesData[dni];
-            showDashboard(dni, userPurchases);
-        } else {
-            showError('No se encontraron compras para este DNI.');
-        }
+        // Mostrar indicador de carga
+        errorMessage.classList.add('hidden');
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Buscando compras...';
+
+        console.log(`Buscando compras en WooCommerce para DNI: ${dni}`);
+        fetch(`/api/compras-woo/${dni}`)
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Error en la API de WooCommerce');
+                }
+                return res.json();
+            })
+            .then(wooPurchases => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+
+                if (wooPurchases && wooPurchases.length > 0) {
+                    console.log(`Encontradas ${wooPurchases.length} compras en WooCommerce.`);
+                    showDashboard(dni, wooPurchases);
+                } else {
+                    console.log('No se encontraron compras en WooCommerce. Usando compras locales...');
+                    if (purchasesData[dni]) {
+                        showDashboard(dni, purchasesData[dni]);
+                    } else {
+                        showError('No se encontraron compras para este DNI.');
+                    }
+                }
+            })
+            .catch(err => {
+                console.warn('Error al buscar en WooCommerce, reintentando con base local:', err);
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+
+                if (purchasesData[dni]) {
+                    showDashboard(dni, purchasesData[dni]);
+                } else {
+                    showError('No se encontraron compras para este DNI.');
+                }
+            });
     });
 
     logoutBtn.addEventListener('click', () => {
@@ -292,11 +329,16 @@ document.addEventListener('DOMContentLoaded', () => {
             dashboardSection.classList.remove('hidden');
             
             // Render data
-            // Obtener el nombre del cliente del primer registro
             const nombreCliente = purchases[0]['Nombre Cliente'] || 'Cliente';
             userNameSpan.textContent = nombreCliente;
             
-            renderPurchases(purchases);
+            // Guardar en variable activa y resetear filtros a valores por defecto
+            activePurchases = purchases;
+            document.getElementById('search-product').value = '';
+            document.getElementById('filter-category').value = 'all';
+            document.getElementById('sort-date').value = 'desc';
+            
+            applyFiltersAndRender();
 
             setTimeout(() => {
                 dashboardSection.classList.add('active');
@@ -304,27 +346,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     }
 
-    function renderPurchases(purchases) {
-        purchasesList.innerHTML = '';
-        
-        const validPurchases = purchases.filter(p => {
-            const itemName = (p['Item'] || '').toLowerCase();
-            return !itemName.includes('envio') && 
-                   !itemName.includes('envío') && 
-                   !itemName.includes('descuento') &&
-                   !itemName.includes('servicio');
+    function applyFiltersAndRender() {
+        const searchQuery = document.getElementById('search-product').value.toLowerCase().trim();
+        const categoryFilter = document.getElementById('filter-category').value;
+        const dateSort = document.getElementById('sort-date').value;
+
+        // 1. Filtrar
+        let filtered = activePurchases.filter(p => {
+            const item = (p['Item'] || '').toLowerCase();
+            const sku = (p['SKU'] || '').toLowerCase();
+
+            // Excluir envíos, descuentos, servicios
+            if (item.includes('envio') || item.includes('envío') || item.includes('descuento') || item.includes('servicio')) {
+                return false;
+            }
+
+            // Filtro por búsqueda de texto
+            const matchesSearch = item.includes(searchQuery) || sku.includes(searchQuery);
+
+            // Filtro por categoría
+            let matchesCategory = true;
+            if (categoryFilter === 'billetera') {
+                matchesCategory = item.includes('billetera');
+            } else if (categoryFilter === 'cartera') {
+                matchesCategory = item.includes('cartera') || item.includes('bolso') || item.includes('mochila');
+            } else if (categoryFilter === 'otro') {
+                matchesCategory = !item.includes('billetera') && !item.includes('cartera') && !item.includes('bolso') && !item.includes('mochila');
+            }
+
+            return matchesSearch && matchesCategory;
         });
 
-        if (validPurchases.length === 0) {
-            purchasesList.innerHTML = '<p style="color: var(--color-text-muted);">No hay compras registradas.</p>';
+        // 2. Ordenar por fecha
+        filtered.sort((a, b) => {
+            const dateA = new Date(a['F. Emision'] || a['F.Registo'] || '1970-01-01');
+            const dateB = new Date(b['F. Emision'] || b['F.Registo'] || '1970-01-01');
+
+            if (dateSort === 'desc') {
+                return dateB - dateA;
+            } else {
+                return dateA - dateB;
+            }
+        });
+
+        renderPurchases(filtered);
+    }
+
+    function renderPurchases(purchases) {
+        purchasesList.innerHTML = '';
+
+        if (purchases.length === 0) {
+            purchasesList.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; width: 100%; grid-column: 1 / -1; padding: 2rem 0;">No se encontraron productos con los criterios especificados.</p>';
             return;
         }
 
         // Renderizar cada compra
-        validPurchases.forEach((p, index) => {
+        purchases.forEach((p, index) => {
             const fecha = p['F. Emision'] || p['F.Registo'] || 'Fecha desconocida';
-            // Formatear fecha de una manera bonita si es un string válido, si no dejarlo tal cual
-            
             const moneda = p['Moneda'] || 'S/';
             const total = parseFloat(p['Total Item'] || 0).toFixed(2);
             const item = p['Item'] || 'Producto sin nombre';
@@ -336,7 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.animationDelay = `${index * 0.1}s`;
             
             let imageHtml = '';
-            if (sku.includes('BC007NN') || (item.toLowerCase().includes('billetera') && item.toLowerCase().includes('negro'))) {
+            if (p['Foto_Producto']) {
+                imageHtml = `<img src="${p['Foto_Producto']}" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
+            } else if (sku.includes('BC007NN') || (item.toLowerCase().includes('billetera') && item.toLowerCase().includes('negro'))) {
                 imageHtml = `<img src="https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
             }
 
@@ -379,6 +459,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Registrar event listeners de filtros
+    document.getElementById('search-product').addEventListener('input', applyFiltersAndRender);
+    document.getElementById('filter-category').addEventListener('change', applyFiltersAndRender);
+    document.getElementById('sort-date').addEventListener('change', applyFiltersAndRender);
+
     // Modal Logic
     closeBtn.addEventListener('click', () => {
         certModal.classList.add('hidden');
@@ -391,50 +476,86 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function openCertModal(sku) {
-        // Generate mock certification data based on the 3 stages
-        certModalBody.innerHTML = `
-            <div class="cert-timeline">
-                <div class="timeline-item">
-                    <div class="timeline-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        const purchase = activePurchases.find(p => p.SKU === sku);
+        if (purchase && purchase.registrado && purchase.trazabilidad) {
+            const t = purchase.trazabilidad;
+            
+            // Renderizar lotes recursivos
+            let lotesHtml = '';
+            if (t.lotes && t.lotes.length > 0) {
+                t.lotes.forEach((lote, index) => {
+                    lotesHtml += `
+                        <div style="margin-top: 0.5rem; padding-left: 0.75rem; border-left: 2px solid var(--color-border); font-size: 0.75rem; color: var(--color-text-muted);">
+                            <p><strong>Sub-lote Cuero:</strong> ${lote.ID_Lote_Cuero_Utilizado || 'No registrado'}</p>
+                            <p><strong>Curtiembre RUC:</strong> ${lote.ruc_curtiembre || 'No registrado'}</p>
+                            ${lote.PDF_Certificado_Previo ? `<p><a href="${lote.PDF_Certificado_Previo}" target="_blank" style="color: #c8a064; text-decoration: underline;">Certificado Curtiembre (PDF)</a></p>` : ''}
+                        </div>
+                    `;
+                });
+            } else {
+                lotesHtml = '<p style="font-size: 0.75rem; color: var(--color-text-muted);">No se encontraron lotes vinculados.</p>';
+            }
+
+            certModalBody.innerHTML = `
+                <div class="cert-timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3>1. Origen Verificado</h3>
+                            <p><strong>Procedencia:</strong> Predio agropecuario verificado</p>
+                            ${lotesHtml}
+                        </div>
                     </div>
-                    <div class="timeline-content">
-                        <h3>1. Origen Verificado</h3>
-                        <p><strong>Procedencia:</strong> Predio agropecuario de nacimiento</p>
-                        <p><strong>SENASA:</strong> Certificado #29481</p>
-                        <p><strong>Legalidad:</strong> RUC Camal Autorizado</p>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3>2. Procesamiento Eco-Responsable</h3>
+                            <p><strong>Confeccionado por:</strong> ${t.taller_artesano || 'Maestro Curtidor ALDA'}</p>
+                            <p><strong>RUC Taller:</strong> ${t.RUC_Fabricante || 'No registrado'}</p>
+                            <p><strong>Curtido:</strong> Vegetal libre de cromo</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3>3. Calidad de Manufactura</h3>
+                            <p><strong>Producto SKU:</strong> ${sku}</p>
+                            <p><strong>Token ID en Blockchain:</strong> #${purchase.nft_token_id}</p>
+                            ${t.PDF_Certificado_Previo ? `<p><a href="${t.PDF_Certificado_Previo}" target="_blank" style="color: #c8a064; text-decoration: underline; font-weight: 600;">Ver Certificado Oficial (PDF)</a></p>` : ''}
+                        </div>
                     </div>
                 </div>
-                <div class="timeline-item">
-                    <div class="timeline-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <div class="cert-footer">
+                    <div class="hash-box">
+                        <span class="hash-label">Smart Contract (zkSYS)</span>
+                        <span class="hash-value">${t.contract_address}</span>
                     </div>
-                    <div class="timeline-content">
-                        <h3>2. Procesamiento Eco-Responsable</h3>
-                        <p><strong>Proceso:</strong> Curtido Vegetal Controlado</p>
-                        <p><strong>Química:</strong> Laboratorio INACAL Acreditado</p>
-                        <p><strong>Sostenibilidad:</strong> Efluentes (VMA) verificados</p>
+                    <span class="badge success">Certificación Blockchain Válida ✅</span>
+                </div>
+            `;
+        } else {
+            // Mostrar modal "En Proceso"
+            certModalBody.innerHTML = `
+                <div style="text-align: center; padding: 2rem 0;">
+                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: #fffbeb; color: #d97706; margin-bottom: 1.5rem; animation: pulse 2s infinite;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                    <h3 style="font-size: 1.25rem; font-weight: bold; color: var(--color-text-main); margin-bottom: 0.5rem;">Certificación En Proceso</h3>
+                    <p style="font-size: 0.875rem; color: var(--color-text-muted); max-width: 320px; margin: 0 auto 1.5rem;">
+                        La compra de este producto (SKU: <strong>${sku}</strong>) fue procesada en WooCommerce. El taller artesanal está certificando el origen del cuero y la costura.
+                    </p>
+                    <div style="font-size: 0.75rem; color: var(--color-text-muted); border-top: 1px solid var(--color-border); padding-top: 1rem; font-family: monospace;">
+                        Estado: Pendiente de Registro Blockchain (zkSYS)
                     </div>
                 </div>
-                <div class="timeline-item">
-                    <div class="timeline-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <div class="timeline-content">
-                        <h3>3. Calidad de Manufactura</h3>
-                        <p><strong>Producto SKU:</strong> ${sku}</p>
-                        <p><strong>Calidad:</strong> Informe CITEccal (abrasión/desgarro)</p>
-                    </div>
-                </div>
-            </div>
-            <div class="cert-footer">
-                <div class="hash-box">
-                    <span class="hash-label">Smart Contract (Syscoin)</span>
-                    <span class="hash-value">0x43488c09cc0dac4acaa6747e556b6150f863b813</span>
-                </div>
-                <span class="badge success">Certificación Válida ✅</span>
-            </div>
-        `;
+            `;
+        }
         certModal.classList.remove('hidden');
     }
 });

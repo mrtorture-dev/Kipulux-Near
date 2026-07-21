@@ -1,0 +1,123 @@
+{
+  "contractName": "KipuluxTrazabilidad",
+  "compilerVersion": "solidity-0.8.24",
+  "evmTarget": "cancun",
+  "network": {
+    "name": "zkSyscoin Tanenbaum Testnet",
+    "chainId": 57057,
+    "rpcUrl": "https://rpc-zk.tanenbaum.io/",
+    "currencySymbol": "SYS"
+  },
+  "roles": {
+    "Relayer": {
+      "address": "Billetera Corporativa (Deployer)",
+      "description": "Firma las transacciones autorizadas sin gas para artesanos y cajeros finales. Es el Owner del contrato."
+    }
+  },
+  "stateVariables": {
+    "estadoToken": {
+      "type": "mapping(uint256 => EstadoPrenda)",
+      "description": "Rastrea el ciclo de vida del certificado digital (0: ORIGINADO, 1: CUSTODIA, 2: VENDIDO)."
+    },
+    "hashComprobante": {
+      "type": "mapping(uint256 => bytes32)",
+      "description": "Almacena de forma inmutable el hash SHA-256 de 32 bytes del XML de la boleta electrónica de SUNAT asociada al producto."
+    }
+  },
+  "functions": [
+    {
+      "name": "mintAuthorized",
+      "signature": "mintAuthorized(address to, string memory tokenURI)",
+      "stateMutability": "nonpayable",
+      "access": "onlyOwner (Relayer)",
+      "parameters": [
+        {
+          "name": "to",
+          "type": "address",
+          "description": "Dirección wallet de la bóveda o del artesano que recibirá la custodia inicial del NFT."
+        },
+        {
+          "name": "tokenURI",
+          "type": "string",
+          "description": "CID IPFSv0 (Qm...) conteniendo la metadata estructurada del producto."
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "description": "ID del token asignado de forma autoincremental."
+        }
+      ]
+    },
+    {
+      "name": "actualizarCustodia",
+      "signature": "actualizarCustodia(uint256 tokenId)",
+      "stateMutability": "nonpayable",
+      "access": "onlyOwner (Relayer)",
+      "parameters": [
+        {
+          "name": "tokenId",
+          "type": "uint256",
+          "description": "ID del NFT del producto a mover a estado de custodia en tienda."
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "name": "registrarVenta",
+      "signature": "registrarVenta(uint256 tokenId, address comprador, bytes32 _hashComprobante)",
+      "stateMutability": "nonpayable",
+      "access": "onlyOwner (Relayer)",
+      "parameters": [
+        {
+          "name": "tokenId",
+          "type": "uint256",
+          "description": "ID del NFT del producto vendido."
+        },
+        {
+          "name": "comprador",
+          "type": "address",
+          "description": "Dirección de wallet (billetera invisible o externa) del comprador final."
+        },
+        {
+          "name": "_hashComprobante",
+          "type": "bytes32",
+          "description": "Hash criptográfico de 32 bytes (SHA-256) derivado del XML de la boleta de la SUNAT."
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "events": [
+    {
+      "name": "CertificadoOriginado",
+      "signature": "CertificadoOriginado(uint256 indexed tokenId, string tokenURI, address indexed taller)",
+      "description": "Emitido al confeccionar y certificar la prenda en origen.",
+      "parameters": [
+        { "name": "tokenId", "type": "uint256", "indexed": true },
+        { "name": "tokenURI", "type": "string", "indexed": false },
+        { "name": "taller", "type": "address", "indexed": true }
+      ]
+    },
+    {
+      "name": "CustodiaActualizada",
+      "signature": "CustodiaActualizada(uint256 indexed tokenId, EstadoPrenda nuevoEstado)",
+      "description": "Emitido al mover el producto del taller a la tienda física.",
+      "parameters": [
+        { "name": "tokenId", "type": "uint256", "indexed": true },
+        { "name": "nuevoEstado", "type": "uint8", "indexed": false }
+      ]
+    },
+    {
+      "name": "VentaRegistrada",
+      "signature": "VentaRegistrada(uint256 indexed tokenId, address indexed comprador, bytes32 hashSUNAT, string hashBoletaTexto)",
+      "description": "Emitido al transferir el NFT al cliente y registrar la boleta de SUNAT.",
+      "parameters": [
+        { "name": "tokenId", "type": "uint256", "indexed": true },
+        { "name": "comprador", "type": "address", "indexed": true },
+        { "name": "hashSUNAT", "type": "bytes32", "indexed": false },
+        { "name": "hashBoletaTexto", "type": "string", "indexed": false }
+      ]
+    }
+  ]
+}
