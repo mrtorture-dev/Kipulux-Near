@@ -27,8 +27,9 @@ const ventaSchema = z.object({
         .min(1, { message: 'El Nro_Comprobante_Pago es obligatorio y no puede estar vacío.' })
         .regex(/^[BF][A-Z0-9]{3}-\d+$/, { message: 'El Nro_Comprobante_Pago debe cumplir con el formato de boleta/factura electrónica (ej: B001-00029384).' }),
     wallet_address_comprador: z.string()
-        .length(42, { message: 'La dirección de wallet debe tener exactamente 42 caracteres de longitud.' })
-        .regex(/^0x[0-9a-fA-F]{40}$/, { message: 'La wallet debe ser un formato EVM válido que inicie con 0x y contenga caracteres hexadecimales.' }),
+        .regex(/^0x[0-9a-fA-F]{40}$/, { message: 'La wallet debe ser un formato EVM válido que inicie con 0x y contenga caracteres hexadecimales.' })
+        .optional()
+        .or(z.literal('')),
     xml_boleta: z.string()
         .min(1, { message: 'El xml_boleta es obligatorio y no puede estar vacío.' })
         .refine(val => val.trim().startsWith('<') && val.trim().includes('>'), {

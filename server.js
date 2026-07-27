@@ -8,7 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
-const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain } = require('./services/blockchain');
+const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain, listTokenOnMarketplace, buyTokenFromMarketplace } = require('./services/blockchain');
 const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema } = require('./middlewares/validation');
 const { subirAIPFS } = require('./services/ipfs');
 require('dotenv').config();
@@ -56,6 +56,8 @@ const swaggerOptions = {
     apis: [__filename], // Documentar directamente en este archivo
 };
 
+const { ethers } = require('ethers'); // IMPORTANTE PARA KMS
+
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -67,7 +69,7 @@ const user = process.env.NEO4J_USER || 'neo4j';
 const password = process.env.NEO4J_PASSWORD || 'Tu_Contraseña_De_Neo4j_Desktop_Aquí';
 const jwtSecret = process.env.JWT_SECRET || 'Kipulux_Clave_Secreta_Segura_2026';
 
-// KMS Simulado para el resguardo cifrado de Claves Privadas de Proveedores
+// KMS Simulado para el resguardo cifrado de Claves Privadas de Proveedores y Clientes
 const encryptionAlgorithm = 'aes-256-cbc';
 const kmsKey = crypto.scryptSync(jwtSecret, 'salt_kms_2026', 32);
 
@@ -77,6 +79,17 @@ function cifrarClavePrivada(privateKeyString) {
     let encrypted = cipher.update(privateKeyString, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return `${iv.toString('hex')}:${encrypted}`;
+}
+
+function descifrarClavePrivada(encryptedString) {
+    if (!encryptedString) return null;
+    const textParts = encryptedString.split(':');
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv(encryptionAlgorithm, kmsKey, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
 }
 
 const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
@@ -332,16 +345,20 @@ async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
         fs.writeFileSync(pdfPath, dummyPdf);
     }
 
+    const idUnico = crypto.randomUUID();
+
     await session.run(`
         MATCH (art:Artesano {RUC_Fabricante: $rucFabricante})
         MATCH (lote:LoteCuero {ID_Lote_Cuero_Utilizado: $loteId})
-        MERGE (p:Producto {SKU_Producto_Final: $sku})
-        ON CREATE SET 
-            p.status = 'ORIGINADO',
-            p.nft_token_id = $tokenId,
-            p.tx_hash_mint = $txHash,
-            p.Foto_Producto = $foto_url,
-            p.PDF_Certificado_Previo = $pdf_url
+        CREATE (p:Producto {
+            id_unico: $idUnico,
+            SKU_Producto_Final: $sku,
+            status: 'ORIGINADO',
+            nft_token_id: $tokenId,
+            tx_hash_mint: $txHash,
+            Foto_Producto: $foto_url,
+            PDF_Certificado_Previo: $pdf_url
+        })
         MERGE (art)-[:CONFECCIONÓ]->(p)
         MERGE (p)-[:HEREDA_DE]->(lote)
     `, {
@@ -351,47 +368,70 @@ async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
         tokenId,
         txHash,
         foto_url: fotoUrl,
-        pdf_url: pdfUrl
+        pdf_url: pdfUrl,
+        idUnico
     });
 
     // 6. Transferir custodia a Tienda
     await session.run(`
-        MATCH (p:Producto {SKU_Producto_Final: $sku})
+        MATCH (p:Producto {id_unico: $idUnico})
         MATCH (t:Tienda {id_tienda: $tiendaRuc})
         MERGE (p)-[:ENTREGADO_A]->(t)
         SET p.status = 'TIENDA'
-    `, { sku, tiendaRuc });
+    `, { idUnico, tiendaRuc });
 
-    console.log(`[Auto-Generador Demo] SKU ${sku} fabricado y entregado a tienda ${tiendaRuc} con Token ID: ${tokenId}.`);
-    return { tokenId, status: 'TIENDA' };
+    console.log(`[Auto-Generador Demo] SKU ${sku} (ID: ${idUnico}) fabricado y entregado a tienda ${tiendaRuc} con Token ID: ${tokenId}.`);
+    return { tokenId, status: 'TIENDA', idUnico };
 }
 
 app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), async (req, res) => {
-    const { SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador, xml_boleta } = req.body;
+    const { SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, xml_boleta } = req.body;
+    let { wallet_address_comprador } = req.body; // Puede venir vacio, lo autogeneraremos si es necesario
     const tiendaRuc = req.user.DNI_O_RUC;
 
-    if (!SKU_Producto_Final || !DNI_O_RUC_Comprador || !Nro_Comprobante_Pago || !wallet_address_comprador || !xml_boleta) {
-        return res.status(400).json({ error: 'Faltan parámetros obligatorios: SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador y xml_boleta.' });
+    if (!SKU_Producto_Final || !DNI_O_RUC_Comprador || !Nro_Comprobante_Pago || !xml_boleta) {
+        return res.status(400).json({ error: 'Faltan parámetros obligatorios: SKU, DNI, Comprobante y XML.' });
     }
 
     const session = driver.session();
 
     try {
+        // 0. Revisar si el Cliente ya existe y tiene una Wallet en KMS
+        const clienteRes = await session.run(
+            `MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni}) RETURN c.wallet_address AS wallet, c.kms_encrypted_key AS key`,
+            { dni: DNI_O_RUC_Comprador }
+        );
+
+        let encryptedKeyToStore = "";
+        
+        if (clienteRes.records.length > 0 && clienteRes.records[0].get('wallet')) {
+            // El cliente ya tiene una wallet custodiada
+            wallet_address_comprador = clienteRes.records[0].get('wallet');
+            encryptedKeyToStore = clienteRes.records[0].get('key') || "";
+        } else if (!wallet_address_comprador || wallet_address_comprador.trim() === '') {
+            // Cliente nuevo sin wallet manual, generamos KMS
+            const clientWallet = ethers.Wallet.createRandom();
+            wallet_address_comprador = clientWallet.address;
+            encryptedKeyToStore = cifrarClavePrivada(clientWallet.privateKey);
+            console.log(`[KMS] Generada nueva wallet segura para el DNI ${DNI_O_RUC_Comprador}: ${wallet_address_comprador}`);
+        }
+
         // 1. Obtener el Token ID, Estado y validar custodia en Neo4j
         const findResult = await session.run(
-            `MATCH (p:Producto {SKU_Producto_Final: $sku})-[r:ENTREGADO_A]->(t:Tienda {id_tienda: $tiendaRuc}) 
-             RETURN p.nft_token_id AS tokenId, p.status AS status`,
+            `MATCH (p:Producto {SKU_Producto_Final: $sku, status: 'TIENDA'})-[r:ENTREGADO_A]->(t:Tienda {id_tienda: $tiendaRuc}) 
+             RETURN p.nft_token_id AS tokenId, p.status AS status, p.id_unico AS idUnico LIMIT 1`,
             { sku: SKU_Producto_Final, tiendaRuc }
         );
 
-        let tokenId, status;
+        let tokenId, status, idUnico;
         if (findResult.records.length === 0) {
             // Si el producto no existe o la tienda no lo tiene en custodia, lo auto-generamos al vuelo!
             try {
-                console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado. Auto-creando en Neo4j/Blockchain...`);
+                console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado en tienda. Auto-creando en Neo4j/Blockchain...`);
                 const autoProd = await autoGenerarProductoYEntregarATienda(SKU_Producto_Final, tiendaRuc, session);
                 tokenId = autoProd.tokenId;
                 status = autoProd.status;
+                idUnico = autoProd.idUnico;
             } catch (autoErr) {
                 console.error('[API Venta] Error en auto-generador:', autoErr);
                 return res.status(400).json({ error: 'La tienda no posee la custodia y falló el auto-generado: ' + autoErr.message });
@@ -400,31 +440,32 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             const record = findResult.records[0];
             status = record.get('status');
             tokenId = record.get('tokenId');
+            idUnico = record.get('idUnico');
         }
 
         if (status === 'VENDIDO') {
             return res.status(400).json({ error: 'El producto ya figura como VENDIDO en la base de datos.' });
         }
 
-        if (!tokenId) {
-            return res.status(400).json({ error: 'El producto no posee un NFT Token ID registrado.' });
+        if (!tokenId || !idUnico) {
+            return res.status(400).json({ error: 'El producto no posee un NFT Token ID o id_unico registrado.' });
         }
 
-        console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}`);
+        console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}, ID: ${idUnico}`);
 
         // 2. Firmar y registrar en zkSyscoin la venta (Cambio de estado y Hash de boleta)
         const { txHash, hashSUNAT } = await ejecutarVentaOnChain(tokenId, wallet_address_comprador, xml_boleta);
 
         console.log(`[API Venta] Confirmada transacción blockchain: ${txHash}. Actualizando Neo4j...`);
 
-        // 3. Actualizar Neo4j (Tienda, Producto, Cliente y Venta B2C)
+        // 3. Actualizar Neo4j (Tienda, Producto, Cliente y Venta B2C) usando id_unico
         await session.run(`
-            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            MATCH (p:Producto {id_unico: $id_unico})
             MATCH (t:Tienda {id_tienda: $tiendaRuc})
             MERGE (c:Cliente {DNI_O_RUC_Comprador: $dni_o_ruc})
-            ON CREATE SET c.nombre_completo = 'Comprador Kipulux', c.wallet_address = $wallet_address
+            ON CREATE SET c.nombre_completo = 'Comprador Kipulux', c.wallet_address = $wallet_address, c.kms_encrypted_key = $kms_key
             ON MATCH SET c.wallet_address = $wallet_address
-            SET p.status = 'VENDIDO'
+            SET p.status = 'VENDIDO', c.kms_encrypted_key = COALESCE(c.kms_encrypted_key, $kms_key)
             MERGE (t)-[rv:VENDIÓ]->(p)
             SET rv.Nro_Comprobante_Pago = $nro_comprobante,
                 rv.Hash_Comprobante_Pago = $hash_boleta,
@@ -443,13 +484,15 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
                 tx_hash_venta: $txHash
             }]->(c)
         `, {
+            id_unico: idUnico,
             sku: SKU_Producto_Final,
             tiendaRuc,
             dni_o_ruc: DNI_O_RUC_Comprador,
+            nro_comprobante: Nro_Comprobante_Pago,
             wallet_address: wallet_address_comprador,
             hash_boleta: hashSUNAT,
-            nro_comprobante: Nro_Comprobante_Pago,
-            txHash
+            kms_key: encryptedKeyToStore,
+            txHash: txHash
         });
 
         console.log(`[API Venta] Éxito. Grafo de venta actualizado.`);
@@ -1659,8 +1702,167 @@ app.get('/api/admin/compras-totales', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// F) INICIALIZACIÓN DEL LISTENER DE EXPRESS
+// E) RUTAS DE MARKETPLACE (ESCROW)
 // ==========================================
+
+/**
+ * @swagger
+ * /api/marketplace:
+ *   get:
+ *     summary: Obtener el catálogo de productos en venta en el mercado secundario
+ *     tags: [Marketplace]
+ *     responses:
+ *       200:
+ *         description: Lista de productos disponibles en venta.
+ */
+app.get('/api/marketplace', async (req, res) => {
+    const session = driver.session();
+    try {
+        const result = await session.run(`
+            MATCH (p:Producto {status: 'EN_VENTA'})
+            MATCH (p)<-[:LISTADO_EN_MARKETPLACE {is_active: true}]-(c:Cliente)
+            RETURN p.SKU_Producto_Final AS sku, p.nombre AS nombre, p.nft_token_id AS tokenId,
+                   c.wallet_address AS sellerWallet, p.precio_mercado AS precioSYS
+        `);
+        
+        const catalog = result.records.map(record => ({
+            sku: record.get('sku'),
+            nombre: record.get('nombre'),
+            tokenId: record.get('tokenId'),
+            sellerWallet: record.get('sellerWallet'),
+            precioSYS: record.get('precioSYS')
+        }));
+        
+        return res.status(200).json(catalog);
+    } catch (error) {
+        console.error('[API Marketplace] Error:', error);
+        return res.status(500).json({ error: 'Error al consultar el catálogo.' });
+    } finally {
+        await session.close();
+    }
+});
+
+/**
+ * @swagger
+ * /api/marketplace/listar:
+ *   post:
+ *     summary: Poner a la venta un producto en el Marketplace
+ *     tags: [Marketplace]
+ */
+app.post('/api/marketplace/listar', authenticateToken, async (req, res) => {
+    const { sku, precioSys } = req.body;
+    const clientDNI = req.user.DNI_O_RUC; // El cliente logueado
+
+    if (!sku || !precioSys) return res.status(400).json({ error: 'Falta sku o precioSys' });
+
+    const session = driver.session();
+    try {
+        // Obtener el NFT y la llave del cliente
+        const prodRes = await session.run(`
+            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})-[:PROPIEDAD_DE]->(p:Producto {SKU_Producto_Final: $sku})
+            MATCH (t:Tienda)-[:VENDIÓ]->(p)
+            RETURN p.nft_token_id AS tokenId, c.kms_encrypted_key AS kmsKey, t.wallet_address AS storeWallet
+        `, { dni: clientDNI, sku });
+
+        if (prodRes.records.length === 0) return res.status(404).json({ error: 'Producto no encontrado o no eres el dueño.' });
+        
+        const tokenId = prodRes.records[0].get('tokenId');
+        const encryptedKey = prodRes.records[0].get('kmsKey');
+        const storeWallet = prodRes.records[0].get('storeWallet') || '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'; // Fallback a store mock
+
+        if (!encryptedKey) return res.status(400).json({ error: 'El cliente no tiene una wallet KMS asociada.' });
+
+        const privateKey = descifrarClavePrivada(encryptedKey);
+
+        // 1. Ejecutar en Blockchain (Aprobar y Listar)
+        await listTokenOnMarketplace(tokenId, precioSys, storeWallet, privateKey);
+
+        // 2. Actualizar Neo4j
+        await session.run(`
+            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})-[:PROPIEDAD_DE]->(p:Producto {SKU_Producto_Final: $sku})
+            SET p.status = 'EN_VENTA', p.precio_mercado = $precio
+            MERGE (c)-[l:LISTADO_EN_MARKETPLACE]->(p)
+            SET l.is_active = true, l.fecha = datetime()
+        `, { dni: clientDNI, sku, precio: parseFloat(precioSys) });
+
+        return res.status(200).json({ message: 'Producto listado con éxito en el Marketplace Escrow.' });
+    } catch (error) {
+        console.error('[API Marketplace Listar] Error:', error);
+        return res.status(500).json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+});
+
+/**
+ * @swagger
+ * /api/marketplace/comprar:
+ *   post:
+ *     summary: Comprar un producto del Marketplace
+ *     tags: [Marketplace]
+ */
+app.post('/api/marketplace/comprar', authenticateToken, async (req, res) => {
+    const { sku } = req.body;
+    const buyerDNI = req.user.DNI_O_RUC;
+
+    if (!sku) return res.status(400).json({ error: 'Falta sku' });
+
+    const session = driver.session();
+    try {
+        // Obtener el producto, el precio y la llave KMS del comprador
+        const infoRes = await session.run(`
+            MATCH (p:Producto {SKU_Producto_Final: $sku, status: 'EN_VENTA'})
+            MATCH (buyer:Cliente {DNI_O_RUC_Comprador: $buyerDni})
+            MATCH (seller:Cliente)-[l:LISTADO_EN_MARKETPLACE {is_active: true}]->(p)
+            RETURN p.nft_token_id AS tokenId, p.precio_mercado AS precioSys, 
+                   buyer.kms_encrypted_key AS buyerKey, buyer.wallet_address AS buyerWallet,
+                   seller.DNI_O_RUC_Comprador AS sellerDni
+        `, { sku, buyerDni: buyerDNI });
+
+        if (infoRes.records.length === 0) return res.status(404).json({ error: 'Producto no en venta o comprador no existe.' });
+        
+        const { tokenId, precioSys, buyerKey, buyerWallet, sellerDni } = {
+            tokenId: infoRes.records[0].get('tokenId'),
+            precioSys: infoRes.records[0].get('precioSys'),
+            buyerKey: infoRes.records[0].get('buyerKey'),
+            buyerWallet: infoRes.records[0].get('buyerWallet'),
+            sellerDni: infoRes.records[0].get('sellerDni')
+        };
+
+        if (!buyerKey) return res.status(400).json({ error: 'El comprador no tiene KMS. Debe crear una wallet.' });
+
+        const privateKey = descifrarClavePrivada(buyerKey);
+
+        // 1. Ejecutar compra en Blockchain
+        await buyTokenFromMarketplace(tokenId, precioSys, privateKey);
+
+        // 2. Actualizar Neo4j
+        await session.run(`
+            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            MATCH (seller:Cliente {DNI_O_RUC_Comprador: $sellerDni})-[l:LISTADO_EN_MARKETPLACE]->(p)
+            MATCH (seller)-[prop:PROPIEDAD_DE]->(p)
+            MATCH (buyer:Cliente {DNI_O_RUC_Comprador: $buyerDni})
+            SET p.status = 'VENDIDO', l.is_active = false
+            DELETE prop
+            MERGE (buyer)-[:PROPIEDAD_DE {fecha: datetime()}]->(p)
+            MERGE (seller)-[:VENDIÓ_A_CLIENTE {fecha: datetime(), precio: $precio}]->(buyer)
+        `, { sku, sellerDni, buyerDni: buyerDNI, precio: precioSys });
+
+        return res.status(200).json({ message: 'Compra exitosa. El NFT ahora es tuyo.' });
+    } catch (error) {
+        console.error('[API Marketplace Comprar] Error:', error);
+        return res.status(500).json({ error: error.message });
+    } finally {
+        await session.close();
+    }
+});
+
+// ==========================================
+// F) TELEGRAM WEBHOOK Y LISTENER
+// ==========================================
+const { handleTelegramWebhook } = require('./services/telegramBot');
+app.post('/api/telegram/webhook', handleTelegramWebhook);
+
 const PORT = process.env.PORT || 3000;
 const serverInstance = app.listen(PORT, () => {
     console.log(`[Server] Backend Corporativo Kipulux corriendo en http://localhost:${PORT}`);

@@ -219,8 +219,109 @@ async function ejecutarTransferenciaOnChain(tokenId, tiendaAddress) {
   }
 }
 
+// ==========================================
+// 4. FUNCIONES DE MARKETPLACE (ESCROW)
+// ==========================================
+const marketplaceAddress = process.env.MARKETPLACE_CONTRACT_ADDRESS || '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9';
+const marketplaceABI = [
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "internalType": "uint256", "name": "price", "type": "uint256" },
+      { "internalType": "address", "name": "originalStore", "type": "address" }
+    ],
+    "name": "listToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
+    ],
+    "name": "buyToken",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  }
+];
+
+const approveABI = [
+  {
+    "inputs": [
+      { "internalType": "address", "name": "to", "type": "address" },
+      { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
+    ],
+    "name": "approve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+];
+
+/**
+ * El cliente aprueba al Marketplace y lista el NFT a la venta.
+ */
+async function listTokenOnMarketplace(tokenId, priceSys, originalStoreAddress, sellerPrivateKey) {
+    const sellerAccount = privateKeyToAccount(sellerPrivateKey.startsWith('0x') ? sellerPrivateKey : `0x${sellerPrivateKey}`);
+    const clientWallet = createWalletClient({ account: sellerAccount, chain: zkSyscoinTanenbaum, transport: http() });
+    
+    console.log(`[Marketplace] Aprobando contrato Escrow para el Token ${tokenId}...`);
+    // 1. Aprobar al marketplace en el contrato de trazabilidad
+    const approveHash = await clientWallet.writeContract({
+        address: contractAddress,
+        abi: approveABI,
+        functionName: 'approve',
+        args: [getAddress(marketplaceAddress), BigInt(tokenId)]
+    });
+    await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+    console.log(`[Marketplace] Listando Token ${tokenId} por ${priceSys} SYS...`);
+    // 2. Listar en el marketplace
+    // priceSys viene como string (ej '1.5'), debemos convertirlo a Wei (18 decimales)
+    const { parseEther } = require('viem');
+    const priceWei = parseEther(priceSys.toString());
+
+    const listHash = await clientWallet.writeContract({
+        address: marketplaceAddress,
+        abi: marketplaceABI,
+        functionName: 'listToken',
+        args: [BigInt(tokenId), priceWei, getAddress(originalStoreAddress)]
+    });
+    await publicClient.waitForTransactionReceipt({ hash: listHash });
+
+    return { approveHash, listHash };
+}
+
+/**
+ * El comprador compra el NFT pagando en SYS.
+ */
+async function buyTokenFromMarketplace(tokenId, priceSys, buyerPrivateKey) {
+    const buyerAccount = privateKeyToAccount(buyerPrivateKey.startsWith('0x') ? buyerPrivateKey : `0x${buyerPrivateKey}`);
+    const clientWallet = createWalletClient({ account: buyerAccount, chain: zkSyscoinTanenbaum, transport: http() });
+    
+    const { parseEther } = require('viem');
+    const priceWei = parseEther(priceSys.toString());
+
+    console.log(`[Marketplace] Comprando Token ${tokenId} por ${priceSys} SYS...`);
+    
+    const buyHash = await clientWallet.writeContract({
+        address: marketplaceAddress,
+        abi: marketplaceABI,
+        functionName: 'buyToken',
+        args: [BigInt(tokenId)],
+        value: priceWei
+    });
+    await publicClient.waitForTransactionReceipt({ hash: buyHash });
+
+    return { buyHash };
+}
+
+
 module.exports = {
   ejecutarMintOnChain,
   ejecutarVentaOnChain,
-  ejecutarTransferenciaOnChain
+  ejecutarTransferenciaOnChain,
+  listTokenOnMarketplace,
+  buyTokenFromMarketplace
 };

@@ -42,7 +42,17 @@ async function main() {
     console.log(`[Deploy] Token ${i} minteado con éxito.`);
   }
 
-  // Inyectar automáticamente la dirección del contrato en el archivo .env
+  // -------------------------------------------------------------
+  // DESPLIEGUE DEL MARKETPLACE (ESCROW)
+  // -------------------------------------------------------------
+  console.log("[Deploy] Desplegando KipuluxMarketplace...");
+  const KipuluxMarketplace = await ethers.getContractFactory("KipuluxMarketplace");
+  const marketplace = await KipuluxMarketplace.deploy(contractAddress, deployerAddress, { gasPrice });
+  await marketplace.waitForDeployment();
+  const marketplaceAddress = await marketplace.getAddress();
+  console.log(`[Deploy] ¡Marketplace desplegado con éxito! Dirección: ${marketplaceAddress}`);
+
+  // Inyectar automáticamente las direcciones en el archivo .env
   const envPath = path.join(__dirname, "..", ".env");
   let envContent = "";
   
@@ -51,17 +61,26 @@ async function main() {
   }
 
   const contractKey = "NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS";
-  const newLine = `${contractKey}=${contractAddress}`;
+  const mktKey = "MARKETPLACE_CONTRACT_ADDRESS";
   
+  // Actualizar Trazabilidad
   if (envContent.includes(contractKey)) {
-    // Reemplazar la línea existente
     const regex = new RegExp(`${contractKey}=.*`, "g");
-    envContent = envContent.replace(regex, newLine);
+    envContent = envContent.replace(regex, `${contractKey}=${contractAddress}`);
     console.log(`[Deploy] Actualizada variable ${contractKey} en archivo .env`);
   } else {
-    // Agregar la nueva variable al final
-    envContent += `\n${newLine}\n`;
+    envContent += `\n${contractKey}=${contractAddress}\n`;
     console.log(`[Deploy] Agregada variable ${contractKey} al archivo .env`);
+  }
+
+  // Actualizar Marketplace
+  if (envContent.includes(mktKey)) {
+    const regexMkt = new RegExp(`${mktKey}=.*`, "g");
+    envContent = envContent.replace(regexMkt, `${mktKey}=${marketplaceAddress}`);
+    console.log(`[Deploy] Actualizada variable ${mktKey} en archivo .env`);
+  } else {
+    envContent += `\n${mktKey}=${marketplaceAddress}\n`;
+    console.log(`[Deploy] Agregada variable ${mktKey} al archivo .env`);
   }
 
   try {
