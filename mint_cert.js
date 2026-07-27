@@ -15,9 +15,11 @@ const zkSysTestnet = defineChain({
   },
 });
 
+require('dotenv').config();
+
 async function main() {
   // Configuración de red y billetera
-  const vaultPrivateKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+  const vaultPrivateKey = process.env.VAULT_PRIVATE_KEY || '';
   const account = privateKeyToAccount(vaultPrivateKey);
   const vaultAddress = account.address;
   const contractAddress = '0xb278d88fae2c640634d3bcb30edb08ba0afdac04'; // Nuevo contrato con ERC165

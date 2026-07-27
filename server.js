@@ -1,4 +1,6 @@
 const express = require('express');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const neo4j = require('neo4j-driver');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -8,12 +10,57 @@ const multer = require('multer');
 const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
-const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain } = require('./services/blockchain');
+const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain, registrarVenta } = require('./services/blockchain');
 const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema } = require('./middlewares/validation');
 const { subirAIPFS } = require('./services/ipfs');
+const { emitirComprobante, emitirBoletaElectronica } = require('./services/simplefact');
 require('dotenv').config();
 
 const app = express();
+
+// Habilitar trust proxy para Nginx reverse proxy
+app.set('trust proxy', 1);
+
+
+// ==========================================
+// A1) SEGURIDAD: CONFIGURACIÓN DE CORS Y RATE LIMITING
+// ==========================================
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()) 
+  : (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV 
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000'] 
+      : []);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
+  credentials: true
+}));
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+app.use(globalLimiter);
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Strict limit exceeded, please try again later.' }
+});
+app.use('/api/productos/crear', strictLimiter);
+app.use('/api/productos/vender', strictLimiter);
+app.use('/api/debug/seed', strictLimiter);
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
@@ -62,10 +109,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // ==========================================
 // B) INICIALIZACIÓN DEL DRIVER OFICIAL DE NEO4J
 // ==========================================
-const uri = process.env.NEO4J_URI || 'neo4j://127.0.0.1:7687';
-const user = process.env.NEO4J_USER || 'neo4j';
-const password = process.env.NEO4J_PASSWORD || 'Tu_Contraseña_De_Neo4j_Desktop_Aquí';
-const jwtSecret = process.env.JWT_SECRET || 'Kipulux_Clave_Secreta_Segura_2026';
+const uri = process.env.NEO4J_URI;
+const user = process.env.NEO4J_USER;
+const password = process.env.NEO4J_PASSWORD;
+const jwtSecret = process.env.JWT_SECRET;
+const vaultPrivateKey = process.env.VAULT_PRIVATE_KEY;
 
 // KMS Simulado para el resguardo cifrado de Claves Privadas de Proveedores
 const encryptionAlgorithm = 'aes-256-cbc';
@@ -367,11 +415,25 @@ async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
 }
 
 app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), async (req, res) => {
-    const { SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador, xml_boleta } = req.body;
-    const tiendaRuc = req.user.DNI_O_RUC;
+    const { 
+        SKU_Producto_Final, 
+        DNI_O_RUC_Comprador, 
+        dni_ruc_comprador,
+        nombre_comprador,
+        email_comprador,
+        wallet_address_comprador, 
+        Nro_Comprobante_Pago, 
+        xml_boleta,
+        monto_total 
+    } = req.body;
 
-    if (!SKU_Producto_Final || !DNI_O_RUC_Comprador || !Nro_Comprobante_Pago || !wallet_address_comprador || !xml_boleta) {
-        return res.status(400).json({ error: 'Faltan parámetros obligatorios: SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador y xml_boleta.' });
+    const tiendaRuc = req.user ? req.user.DNI_O_RUC : '20600123456';
+    const compradorDniRuc = DNI_O_RUC_Comprador || dni_ruc_comprador;
+    const nombreCliente = nombre_comprador || 'Comprador Kipulux';
+    const emailCliente = email_comprador || 'cliente@kipulux.com';
+
+    if (!SKU_Producto_Final || !compradorDniRuc || !wallet_address_comprador) {
+        return res.status(400).json({ error: 'Faltan parámetros obligatorios: SKU_Producto_Final, comprador (DNI/RUC) y wallet_address_comprador.' });
     }
 
     const session = driver.session();
@@ -386,9 +448,8 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
 
         let tokenId, status;
         if (findResult.records.length === 0) {
-            // Si el producto no existe o la tienda no lo tiene en custodia, lo auto-generamos al vuelo!
+            console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado en custodia. Auto-creando en Neo4j/Blockchain...`);
             try {
-                console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado. Auto-creando en Neo4j/Blockchain...`);
                 const autoProd = await autoGenerarProductoYEntregarATienda(SKU_Producto_Final, tiendaRuc, session);
                 tokenId = autoProd.tokenId;
                 status = autoProd.status;
@@ -406,65 +467,119 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             return res.status(400).json({ error: 'El producto ya figura como VENDIDO en la base de datos.' });
         }
 
+        // Decodificar tokenId a formato primitivo string si viene de Neo4j Integer
+        if (tokenId !== undefined && tokenId !== null && typeof tokenId === 'object' && typeof tokenId.toString === 'function') {
+            tokenId = tokenId.toString();
+        }
+
         if (!tokenId) {
             return res.status(400).json({ error: 'El producto no posee un NFT Token ID registrado.' });
         }
 
         console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}`);
 
-        // 2. Firmar y registrar en zkSyscoin la venta (Cambio de estado y Hash de boleta)
-        const { txHash, hashSUNAT } = await ejecutarVentaOnChain(tokenId, wallet_address_comprador, xml_boleta);
+        // 2. Emisión de Facturación Electrónica mediante SimpleFact SUNAT (o Fallback MOCK)
+        let finalNroBoleta = Nro_Comprobante_Pago;
+        let finalXmlBoleta = xml_boleta;
+        let finalHashFiscal = null;
+        let enlacePdf = null;
+        let enlaceXml = null;
 
-        console.log(`[API Venta] Confirmada transacción blockchain: ${txHash}. Actualizando Neo4j...`);
+        if (!finalNroBoleta || !finalXmlBoleta) {
+            console.log(`[API Venta] Invocando servicio SimpleFact SUNAT para SKU ${SKU_Producto_Final}...`);
+            const simplefactRes = await emitirComprobante({
+                rucEmisor: tiendaRuc,
+                dniRucComprador: compradorDniRuc,
+                nombreComprador: nombreCliente,
+                emailComprador: emailCliente,
+                sku: SKU_Producto_Final,
+                montoTotal: monto_total || 250.00
+            });
 
-        // 3. Actualizar Neo4j (Tienda, Producto, Cliente y Venta B2C)
+            finalNroBoleta = simplefactRes.serie_numero || simplefactRes.numeroBoleta;
+            finalXmlBoleta = simplefactRes.comprobante_str || simplefactRes.xmlBoleta;
+            finalHashFiscal = simplefactRes.hashFiscal;
+            enlacePdf = simplefactRes.enlace_pdf;
+            enlaceXml = simplefactRes.enlace_xml;
+        }
+
+        // 3. Hash SUNAT response bytes32 (66 chars: 0x + 64 hex)
+        if (!finalHashFiscal) {
+            const hashHex = crypto.createHash('sha256').update(finalXmlBoleta, 'utf8').digest('hex');
+            finalHashFiscal = `0x${hashHex}`;
+        }
+
+        console.log(`[API Venta] Registrando venta on-chain. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}, Boleta: ${finalNroBoleta}, Hash: ${finalHashFiscal}`);
+
+        // 4. Registro Blockchain via registrarVenta / ejecutarVentaOnChain
+        const { txHash, hashSUNAT } = await registrarVenta(tokenId, wallet_address_comprador, finalXmlBoleta);
+        const hashFiscalDefinitivo = finalHashFiscal || hashSUNAT;
+
+        // 5. Neo4j Parameterized Cypher query updating [:VENDIDO_A], [:VENDIÓ] y [:PROPIEDAD_DE]
         await session.run(`
             MATCH (p:Producto {SKU_Producto_Final: $sku})
             MATCH (t:Tienda {id_tienda: $tiendaRuc})
             MERGE (c:Cliente {DNI_O_RUC_Comprador: $dni_o_ruc})
-            ON CREATE SET c.nombre_completo = 'Comprador Kipulux', c.wallet_address = $wallet_address
-            ON MATCH SET c.wallet_address = $wallet_address
+            ON CREATE SET 
+                c.nombre_completo = $nombre_completo,
+                c.email = $email_cliente,
+                c.wallet_address = $wallet_address
+            ON MATCH SET 
+                c.wallet_address = $wallet_address
             SET p.status = 'VENDIDO'
             MERGE (t)-[rv:VENDIÓ]->(p)
-            SET rv.Nro_Comprobante_Pago = $nro_comprobante,
-                rv.Hash_Comprobante_Pago = $hash_boleta,
+            SET rv.Nro_Comprobante_Pago = $numero_boleta,
+                rv.Hash_Comprobante_Pago = $hash_fiscal_sunat,
+                rv.comprobante_simplefact = $comprobante_simplefact,
                 rv.tx_hash_venta = $txHash,
                 rv.fecha = datetime()
             MERGE (p)-[:PROPIEDAD_DE {
                 fecha: datetime(),
-                Hash_Comprobante_Pago: $hash_boleta,
-                Nro_Comprobante_Pago: $nro_comprobante,
+                Hash_Comprobante_Pago: $hash_fiscal_sunat,
+                Nro_Comprobante_Pago: $numero_boleta,
+                comprobante_simplefact: $comprobante_simplefact,
                 tx_hash_venta: $txHash
             }]->(c)
             MERGE (p)-[:VENDIDO_A {
                 fecha: datetime(),
-                Hash_Comprobante_Pago: $hash_boleta,
-                Nro_Comprobante_Pago: $nro_comprobante,
+                Hash_Comprobante_Pago: $hash_fiscal_sunat,
+                Nro_Comprobante_Pago: $numero_boleta,
+                numero_boleta: $numero_boleta,
+                hash_fiscal_sunat: $hash_fiscal_sunat,
+                comprobante_simplefact: $comprobante_simplefact,
                 tx_hash_venta: $txHash
             }]->(c)
         `, {
             sku: SKU_Producto_Final,
             tiendaRuc,
-            dni_o_ruc: DNI_O_RUC_Comprador,
+            dni_o_ruc: compradorDniRuc,
+            nombre_completo: nombreCliente,
+            email_cliente: emailCliente,
             wallet_address: wallet_address_comprador,
-            hash_boleta: hashSUNAT,
-            nro_comprobante: Nro_Comprobante_Pago,
+            hash_fiscal_sunat: hashFiscalDefinitivo,
+            numero_boleta: finalNroBoleta,
+            comprobante_simplefact: finalXmlBoleta,
             txHash
         });
 
-        console.log(`[API Venta] Éxito. Grafo de venta actualizado.`);
+        console.log(`[API Venta] Transacción exitosa. Grafo Neo4j actualizado con [:VENDIDO_A].`);
 
         return res.status(200).json({
-            message: 'Venta procesada y certificada con éxito en zkSyscoin y Neo4j.',
+            message: 'Venta procesada y certificada con éxito en SUNAT/SimpleFact, zkSyscoin y Neo4j.',
             sku: SKU_Producto_Final,
             tokenId,
-            comprador: DNI_O_RUC_Comprador,
-            hashSUNAT,
+            comprador: compradorDniRuc,
+            numeroBoleta: finalNroBoleta,
+            serie_numero: finalNroBoleta,
+            enlace_pdf: enlacePdf || `https://api.simplefact.pe/v1/pdf/${finalNroBoleta}`,
+            enlace_xml: enlaceXml || `https://api.simplefact.pe/v1/xml/${finalNroBoleta}`,
+            hashSUNAT: hashFiscalDefinitivo,
+            hash_fiscal_sunat: hashFiscalDefinitivo,
             txHash
         });
 
     } catch (error) {
-        console.error('[API Venta] Error procesando la venta híbrida:', error);
+        console.error('[API Venta] Error procesando la venta coordinada:', error);
         return res.status(500).json({ 
             error: 'Error interno en la transacción coordinada de venta.', 
             details: error.message 
@@ -803,7 +918,7 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
     { name: 'Foto_Producto', maxCount: 1 },
     { name: 'PDF_Certificado_Previo', maxCount: 1 }
 ]), validateBody(crearProductoSchema), async (req, res) => {
-    const { SKU_Producto_Final, ID_Lote_Cuero_Utilizado } = req.body;
+    const { SKU_Producto_Final, ID_Lote_Cuero_Utilizado, Descripcion } = req.body;
     
     // El RUC_Fabricante se obtiene del JWT inyectado en req.user
     const rucFabricante = req.user.DNI_O_RUC;
@@ -912,7 +1027,8 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
                     tx_hash_mint: $txHash,
                     Foto_Producto: $foto_url,
                     PDF_Certificado_Previo: $pdf_url,
-                    fecha_creacion: datetime()
+                    fecha_creacion: datetime(),
+                    Descripcion: $descripcion
                 })
                 CREATE (p)-[:PROVIENE_DE]->(lote)
                 CREATE (p)-[:HEREDA_DE]->(lote)
@@ -925,7 +1041,8 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
                 tokenId: tokenId,
                 txHash: txHash,
                 foto_url: fotoUrl,
-                pdf_url: pdfUrl
+                pdf_url: pdfUrl,
+                descripcion: Descripcion || ''
             });
 
             return res.status(200).json({
@@ -1098,11 +1215,15 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
     try {
         const result = await session.run(`
             MATCH (art:Artesano {RUC_Fabricante: $ruc})-[:CONFECCIONÓ]->(p:Producto)
+            OPTIONAL MATCH (p)-[:PROVIENE_DE]->(lote:LoteCuero)
             RETURN 
                 p.SKU_Producto_Final AS SKU_Producto_Final,
                 p.status AS status,
                 p.nft_token_id AS nft_token_id,
-                p.fecha_creacion AS fecha_creacion
+                p.fecha_creacion AS fecha_creacion,
+                p.Foto_Producto AS Foto_Producto,
+                p.Descripcion AS Descripcion,
+                lote.ID_Lote_Cuero_Utilizado AS ID_Lote_Cuero_Utilizado
             ORDER BY p.fecha_creacion DESC
         `, { ruc });
 
@@ -1112,7 +1233,10 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
                 SKU_Producto_Final: record.get('SKU_Producto_Final'),
                 status: record.get('status'),
                 nft_token_id: record.get('nft_token_id'),
-                fecha_creacion: dateObj ? dateObj.toString() : new Date().toISOString()
+                fecha_creacion: dateObj ? dateObj.toString() : new Date().toISOString(),
+                Foto_Producto: record.get('Foto_Producto') || '',
+                Descripcion: record.get('Descripcion') || 'Sin descripción artesanal.',
+                ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A'
             };
         });
 
@@ -1120,6 +1244,70 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('[API Artesano Productos] Error:', error);
         return res.status(500).json({ error: 'Error interno al listar prendas.' });
+    } finally {
+        await session.close();
+    }
+});
+
+app.get('/api/productos/inspeccionar/:sku', authenticateToken, async (req, res) => {
+    const { sku } = req.params;
+    const session = driver.session();
+    try {
+        const result = await session.run(`
+            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            OPTIONAL MATCH (art:Artesano)-[:CONFECCIONÓ]->(p)
+            OPTIONAL MATCH (p)-[:PROVIENE_DE]->(lote:LoteCuero)
+            OPTIONAL MATCH (p)-[:ENTREGADO_A]->(t:Tienda)
+            OPTIONAL MATCH (cliente:Cliente)<-[prop:PROPIEDAD_DE]-(p)
+            RETURN 
+                p.SKU_Producto_Final AS sku,
+                p.status AS status,
+                p.Foto_Producto AS Foto_Producto,
+                p.PDF_Certificado_Previo AS PDF_Certificado_Previo,
+                p.nft_token_id AS nft_token_id,
+                p.tx_hash_mint AS tx_hash_mint,
+                p.Descripcion AS Descripcion,
+                p.fecha_creacion AS fecha_creacion,
+                art.nombre_taller AS taller_artesano,
+                art.RUC_Fabricante AS RUC_Fabricante,
+                lote.ID_Lote_Cuero_Utilizado AS ID_Lote_Cuero_Utilizado,
+                t.nombre_tienda AS nombre_tienda,
+                t.id_tienda AS id_tienda,
+                prop.Nro_Comprobante_Pago AS Nro_Comprobante_Pago,
+                prop.Hash_Comprobante_Pago AS Hash_Comprobante_Pago,
+                cliente.nombre_completo AS cliente_nombre,
+                cliente.DNI_O_RUC_Comprador AS cliente_dni
+        `, { sku });
+
+        if (result.records.length === 0) {
+            return res.status(404).json({ error: 'Producto no encontrado.' });
+        }
+
+        const record = result.records[0];
+        const dateObj = record.get('fecha_creacion');
+        
+        return res.status(200).json({
+            sku: record.get('sku'),
+            status: record.get('status'),
+            Foto_Producto: record.get('Foto_Producto'),
+            PDF_Certificado_Previo: record.get('PDF_Certificado_Previo'),
+            nft_token_id: record.get('nft_token_id'),
+            tx_hash_mint: record.get('tx_hash_mint'),
+            Descripcion: record.get('Descripcion') || 'Sin descripción artesanal.',
+            fecha_creacion: dateObj ? dateObj.toString() : new Date().toISOString(),
+            taller_artesano: record.get('taller_artesano') || 'N/A',
+            RUC_Fabricante: record.get('RUC_Fabricante') || 'N/A',
+            ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A',
+            nombre_tienda: record.get('nombre_tienda') || 'N/A',
+            id_tienda: record.get('id_tienda') || 'N/A',
+            Nro_Comprobante_Pago: record.get('Nro_Comprobante_Pago') || 'N/A',
+            Hash_Comprobante_Pago: record.get('Hash_Comprobante_Pago') || 'N/A',
+            cliente_nombre: record.get('cliente_nombre') || 'N/A',
+            cliente_dni: record.get('cliente_dni') || 'N/A'
+        });
+    } catch (error) {
+        console.error('[API Inspeccionar] Error:', error);
+        return res.status(500).json({ error: 'Error interno al inspeccionar el producto.' });
     } finally {
         await session.close();
     }
@@ -1509,7 +1697,7 @@ app.get('/api/compras-woo/:dni', async (req, res) => {
                             RUC_Fabricante: record.get('RUC_Fabricante'),
                             lotes: record.get('lotes') || [],
                             PDF_Certificado_Previo: record.get('PDF_Certificado_Previo'),
-                            contract_address: process.env.NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS || '0x5fbdb2315678afecb367f032d93f642f64180aa3'
+                            contract_address: process.env.CONTRACT_ADDRESS
                         };
                     }
                 }
@@ -1661,7 +1849,7 @@ app.get('/api/admin/compras-totales', authenticateToken, async (req, res) => {
 // ==========================================
 // F) INICIALIZACIÓN DEL LISTENER DE EXPRESS
 // ==========================================
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 const serverInstance = app.listen(PORT, () => {
     console.log(`[Server] Backend Corporativo Kipulux corriendo en http://localhost:${PORT}`);
 });

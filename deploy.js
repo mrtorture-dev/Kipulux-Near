@@ -86,9 +86,11 @@ const zkSysTestnet = defineChain({
   rpcUrls: { default: { http: ['https://rpc-zk.tanenbaum.io'] } },
 });
 
+require('dotenv').config();
+
 async function main() {
     console.log("Preparando despliegue...");
-    const privateKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    const privateKey = process.env.VAULT_PRIVATE_KEY || '';
     const account = privateKeyToAccount(privateKey);
     
     const walletClient = createWalletClient({

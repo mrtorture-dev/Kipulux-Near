@@ -3,6 +3,8 @@ package-lock.json
 *.log
 .env
 .DS_Store
+docker/
+*.dump
 
 # Build outputs
 artifacts/

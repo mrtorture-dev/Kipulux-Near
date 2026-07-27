@@ -7,8 +7,8 @@ require('dotenv').config();
 // ==========================================
 const uri = process.env.NEO4J_URI || 'neo4j://127.0.0.1:7687';
 const user = process.env.NEO4J_USER || 'neo4j';
-const password = process.env.NEO4J_PASSWORD || 'Tu_Contraseña_De_Neo4j_Desktop_Aquí';
-const jwtSecret = process.env.JWT_SECRET || 'Kipulux_Clave_Secreta_Segura_2026';
+const password = process.env.NEO4J_PASSWORD || '';
+const jwtSecret = process.env.JWT_SECRET || '';
 
 // KMS Simulado para cifrar claves privadas de prueba
 const encryptionAlgorithm = 'aes-256-cbc';
