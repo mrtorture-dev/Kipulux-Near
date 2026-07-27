@@ -1,26 +1,29 @@
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 // 1. Set environment variables
-process.env.RPC_URL = "http://127.0.0.1:8545";
-process.env.CHAIN_ID = "31337";
-process.env.VAULT_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-process.env.NEO4J_URI = "bolt://localhost:7687";
-process.env.NEO4J_USER = "neo4j";
-process.env.NEO4J_PASSWORD = "your_neo4j_password_here";
-process.env.JWT_SECRET = "your_jwt_secret_key_here";
-process.env.PORT = "3005";
+process.env.RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
+process.env.CHAIN_ID = process.env.CHAIN_ID || "31337";
+process.env.VAULT_PRIVATE_KEY = process.env.VAULT_PRIVATE_KEY || "";
+process.env.NEO4J_URI = process.env.NEO4J_URI || "bolt://localhost:7687";
+process.env.NEO4J_USER = process.env.NEO4J_USER || "neo4j";
+process.env.NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || "";
+process.env.JWT_SECRET = process.env.JWT_SECRET || "";
+process.env.PORT = process.env.PORT || "3005";
+process.env.CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "";
 
 // Write .env file
-const envContent = `RPC_URL=http://127.0.0.1:8545
-CHAIN_ID=31337
-VAULT_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_neo4j_password_here
-JWT_SECRET=your_jwt_secret_key_here
-PORT=3005
+const envContent = `RPC_URL=${process.env.RPC_URL}
+CHAIN_ID=${process.env.CHAIN_ID}
+VAULT_PRIVATE_KEY=${process.env.VAULT_PRIVATE_KEY}
+NEO4J_URI=${process.env.NEO4J_URI}
+NEO4J_USER=${process.env.NEO4J_USER}
+NEO4J_PASSWORD=${process.env.NEO4J_PASSWORD}
+JWT_SECRET=${process.env.JWT_SECRET}
+PORT=${process.env.PORT}
+CONTRACT_ADDRESS=${process.env.CONTRACT_ADDRESS}
 `;
 fs.writeFileSync(path.join(__dirname, '..', '.env'), envContent, 'utf8');
 console.log('[StartAll] Wrote .env file successfully.');

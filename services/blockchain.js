@@ -7,7 +7,7 @@ require('dotenv').config();
 // 1. CONFIGURACIÓN DE RED ZKSYSCOIN TANENBAUM
 // ==========================================
 const zkSyscoinTanenbaum = defineChain({
-  id: Number(process.env.CHAIN_ID) || 57057,
+  id: Number(process.env.CHAIN_ID),
   name: 'zkSyscoin Tanenbaum Testnet',
   network: 'zksyscoin-tanenbaum',
   nativeCurrency: {
@@ -17,19 +17,18 @@ const zkSyscoinTanenbaum = defineChain({
   },
   rpcUrls: {
     default: {
-      http: [process.env.RPC_URL || process.env.BLOCKCHAIN_RPC || 'https://rpc-zk.tanenbaum.io/'],
+      http: [process.env.RPC_URL],
     },
     public: {
-      http: [process.env.RPC_URL || process.env.BLOCKCHAIN_RPC || 'https://rpc-zk.tanenbaum.io/'],
+      http: [process.env.RPC_URL],
     },
   },
 });
 
 const rawPrivateKey = process.env.VAULT_PRIVATE_KEY;
-const compromisedKey = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-if (!rawPrivateKey || rawPrivateKey.trim() === '' || rawPrivateKey.trim() === compromisedKey) {
-  console.error('[Relayer Error] La variable de entorno VAULT_PRIVATE_KEY no está configurada, está vacía o contiene la clave de pruebas comprometida.');
+if (!rawPrivateKey || rawPrivateKey.trim() === '') {
+  console.error('[Relayer Error] La variable de entorno VAULT_PRIVATE_KEY no está configurada o está vacía.');
   process.exit(1);
 }
 
@@ -37,7 +36,7 @@ if (!rawPrivateKey || rawPrivateKey.trim() === '' || rawPrivateKey.trim() === co
 const privateKey = rawPrivateKey.startsWith('0x') ? rawPrivateKey : `0x${rawPrivateKey}`;
 const account = privateKeyToAccount(privateKey);
 
-const contractAddress = process.env.NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS || '0x43488c09cc0dac4acaa6747e556b6150f863b813';
+const contractAddress = process.env.CONTRACT_ADDRESS;
 
 // Clientes de Viem
 const publicClient = createPublicClient({
@@ -167,9 +166,14 @@ async function ejecutarMintOnChain(toAddress, metadataURI) {
 async function ejecutarVentaOnChain(tokenId, compradorAddress, xmlBoletaString) {
   console.log(`[Blockchain] Registrando venta para TokenID ${tokenId}...`);
   try {
-    // 1. Calcular hash SHA-256 nativo de la boleta XML
-    const hashHex = crypto.createHash('sha256').update(xmlBoletaString).digest('hex');
-    const bytes32Hash = `0x${hashHex}`;
+    // 1. Calcular hash SHA-256 nativo de la boleta XML (o usar bytes32 si ya está calculado)
+    let bytes32Hash;
+    if (typeof xmlBoletaString === 'string' && xmlBoletaString.startsWith('0x') && xmlBoletaString.length === 66) {
+      bytes32Hash = xmlBoletaString;
+    } else {
+      const hashHex = crypto.createHash('sha256').update(xmlBoletaString || '', 'utf8').digest('hex');
+      bytes32Hash = `0x${hashHex}`;
+    }
 
     console.log(`[Blockchain] Hash SUNAT calculado (bytes32): ${bytes32Hash}`);
 
@@ -191,6 +195,11 @@ async function ejecutarVentaOnChain(tokenId, compradorAddress, xmlBoletaString) 
     throw error;
   }
 }
+
+/**
+ * Alias para registrarVenta on-chain
+ */
+const registrarVenta = ejecutarVentaOnChain;
 
 /**
  * Transfiere la custodia on-chain del NFT de la wallet del artesano a la tienda.
@@ -321,6 +330,7 @@ async function buyTokenFromMarketplace(tokenId, priceSys, buyerPrivateKey) {
 module.exports = {
   ejecutarMintOnChain,
   ejecutarVentaOnChain,
+  registrarVenta,
   ejecutarTransferenciaOnChain,
   listTokenOnMarketplace,
   buyTokenFromMarketplace

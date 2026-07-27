@@ -19,8 +19,10 @@ describe('IPFS Service Mock Tests', () => {
 
 describe('Blockchain Service Tests', () => {
   before(() => {
-    // Ensure VAULT_PRIVATE_KEY is set so requiring blockchain.js does not trigger process.exit
-    process.env.VAULT_PRIVATE_KEY = process.env.VAULT_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    require('dotenv').config();
+    if (!process.env.VAULT_PRIVATE_KEY) {
+      console.warn('[Test Warning] VAULT_PRIVATE_KEY environment variable is not set');
+    }
   });
 
   it('should load blockchain service and export required functions', () => {
