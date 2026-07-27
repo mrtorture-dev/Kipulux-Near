@@ -103,6 +103,8 @@ const swaggerOptions = {
     apis: [__filename], // Documentar directamente en este archivo
 };
 
+const { ethers } = require('ethers'); // IMPORTANTE PARA KMS
+
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -115,7 +117,7 @@ const password = process.env.NEO4J_PASSWORD;
 const jwtSecret = process.env.JWT_SECRET;
 const vaultPrivateKey = process.env.VAULT_PRIVATE_KEY;
 
-// KMS Simulado para el resguardo cifrado de Claves Privadas de Proveedores
+// KMS Simulado para el resguardo cifrado de Claves Privadas de Proveedores y Clientes
 const encryptionAlgorithm = 'aes-256-cbc';
 const kmsKey = crypto.scryptSync(jwtSecret, 'salt_kms_2026', 32);
 
@@ -125,6 +127,17 @@ function cifrarClavePrivada(privateKeyString) {
     let encrypted = cipher.update(privateKeyString, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return `${iv.toString('hex')}:${encrypted}`;
+}
+
+function descifrarClavePrivada(encryptedString) {
+    if (!encryptedString) return null;
+    const textParts = encryptedString.split(':');
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv(encryptionAlgorithm, kmsKey, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
 }
 
 const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
@@ -380,16 +393,20 @@ async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
         fs.writeFileSync(pdfPath, dummyPdf);
     }
 
+    const idUnico = crypto.randomUUID();
+
     await session.run(`
         MATCH (art:Artesano {RUC_Fabricante: $rucFabricante})
         MATCH (lote:LoteCuero {ID_Lote_Cuero_Utilizado: $loteId})
-        MERGE (p:Producto {SKU_Producto_Final: $sku})
-        ON CREATE SET 
-            p.status = 'ORIGINADO',
-            p.nft_token_id = $tokenId,
-            p.tx_hash_mint = $txHash,
-            p.Foto_Producto = $foto_url,
-            p.PDF_Certificado_Previo = $pdf_url
+        CREATE (p:Producto {
+            id_unico: $idUnico,
+            SKU_Producto_Final: $sku,
+            status: 'ORIGINADO',
+            nft_token_id: $tokenId,
+            tx_hash_mint: $txHash,
+            Foto_Producto: $foto_url,
+            PDF_Certificado_Previo: $pdf_url
+        })
         MERGE (art)-[:CONFECCIONÓ]->(p)
         MERGE (p)-[:HEREDA_DE]->(lote)
     `, {
@@ -399,19 +416,20 @@ async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
         tokenId,
         txHash,
         foto_url: fotoUrl,
-        pdf_url: pdfUrl
+        pdf_url: pdfUrl,
+        idUnico
     });
 
     // 6. Transferir custodia a Tienda
     await session.run(`
-        MATCH (p:Producto {SKU_Producto_Final: $sku})
+        MATCH (p:Producto {id_unico: $idUnico})
         MATCH (t:Tienda {id_tienda: $tiendaRuc})
         MERGE (p)-[:ENTREGADO_A]->(t)
         SET p.status = 'TIENDA'
-    `, { sku, tiendaRuc });
+    `, { idUnico, tiendaRuc });
 
-    console.log(`[Auto-Generador Demo] SKU ${sku} fabricado y entregado a tienda ${tiendaRuc} con Token ID: ${tokenId}.`);
-    return { tokenId, status: 'TIENDA' };
+    console.log(`[Auto-Generador Demo] SKU ${sku} (ID: ${idUnico}) fabricado y entregado a tienda ${tiendaRuc} con Token ID: ${tokenId}.`);
+    return { tokenId, status: 'TIENDA', idUnico };
 }
 
 app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), async (req, res) => {
@@ -439,20 +457,41 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
     const session = driver.session();
 
     try {
+        // 0. Revisar si el Cliente ya existe y tiene una Wallet en KMS
+        const clienteRes = await session.run(
+            `MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni}) RETURN c.wallet_address AS wallet, c.kms_encrypted_key AS key`,
+            { dni: DNI_O_RUC_Comprador }
+        );
+
+        let encryptedKeyToStore = "";
+        
+        if (clienteRes.records.length > 0 && clienteRes.records[0].get('wallet')) {
+            // El cliente ya tiene una wallet custodiada
+            wallet_address_comprador = clienteRes.records[0].get('wallet');
+            encryptedKeyToStore = clienteRes.records[0].get('key') || "";
+        } else if (!wallet_address_comprador || wallet_address_comprador.trim() === '') {
+            // Cliente nuevo sin wallet manual, generamos KMS
+            const clientWallet = ethers.Wallet.createRandom();
+            wallet_address_comprador = clientWallet.address;
+            encryptedKeyToStore = cifrarClavePrivada(clientWallet.privateKey);
+            console.log(`[KMS] Generada nueva wallet segura para el DNI ${DNI_O_RUC_Comprador}: ${wallet_address_comprador}`);
+        }
+
         // 1. Obtener el Token ID, Estado y validar custodia en Neo4j
         const findResult = await session.run(
-            `MATCH (p:Producto {SKU_Producto_Final: $sku})-[r:ENTREGADO_A]->(t:Tienda {id_tienda: $tiendaRuc}) 
-             RETURN p.nft_token_id AS tokenId, p.status AS status`,
+            `MATCH (p:Producto {SKU_Producto_Final: $sku, status: 'TIENDA'})-[r:ENTREGADO_A]->(t:Tienda {id_tienda: $tiendaRuc}) 
+             RETURN p.nft_token_id AS tokenId, p.status AS status, p.id_unico AS idUnico LIMIT 1`,
             { sku: SKU_Producto_Final, tiendaRuc }
         );
 
-        let tokenId, status;
+        let tokenId, status, idUnico;
         if (findResult.records.length === 0) {
             console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado en custodia. Auto-creando en Neo4j/Blockchain...`);
             try {
                 const autoProd = await autoGenerarProductoYEntregarATienda(SKU_Producto_Final, tiendaRuc, session);
                 tokenId = autoProd.tokenId;
                 status = autoProd.status;
+                idUnico = autoProd.idUnico;
             } catch (autoErr) {
                 console.error('[API Venta] Error en auto-generador:', autoErr);
                 return res.status(400).json({ error: 'La tienda no posee la custodia y falló el auto-generado: ' + autoErr.message });
@@ -461,6 +500,7 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             const record = findResult.records[0];
             status = record.get('status');
             tokenId = record.get('tokenId');
+            idUnico = record.get('idUnico');
         }
 
         if (status === 'VENDIDO') {
@@ -472,11 +512,11 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             tokenId = tokenId.toString();
         }
 
-        if (!tokenId) {
-            return res.status(400).json({ error: 'El producto no posee un NFT Token ID registrado.' });
+        if (!tokenId || !idUnico) {
+            return res.status(400).json({ error: 'El producto no posee un NFT Token ID o id_unico registrado.' });
         }
 
-        console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}`);
+        console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}, ID: ${idUnico}`);
 
         // 2. Emisión de Facturación Electrónica mediante SimpleFact SUNAT (o Fallback MOCK)
         let finalNroBoleta = Nro_Comprobante_Pago;
@@ -496,201 +536,6 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
                 montoTotal: monto_total || 250.00
             });
 
-            finalNroBoleta = simplefactRes.serie_numero || simplefactRes.numeroBoleta;
-            finalXmlBoleta = simplefactRes.comprobante_str || simplefactRes.xmlBoleta;
-            finalHashFiscal = simplefactRes.hashFiscal;
-            enlacePdf = simplefactRes.enlace_pdf;
-            enlaceXml = simplefactRes.enlace_xml;
-        }
-
-        // 3. Hash SUNAT response bytes32 (66 chars: 0x + 64 hex)
-        if (!finalHashFiscal) {
-            const hashHex = crypto.createHash('sha256').update(finalXmlBoleta, 'utf8').digest('hex');
-            finalHashFiscal = `0x${hashHex}`;
-        }
-
-        console.log(`[API Venta] Registrando venta on-chain. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}, Boleta: ${finalNroBoleta}, Hash: ${finalHashFiscal}`);
-
-        // 4. Registro Blockchain via registrarVenta / ejecutarVentaOnChain
-        const { txHash, hashSUNAT } = await registrarVenta(tokenId, wallet_address_comprador, finalXmlBoleta);
-        const hashFiscalDefinitivo = finalHashFiscal || hashSUNAT;
-
-        // 5. Neo4j Parameterized Cypher query updating [:VENDIDO_A], [:VENDIÓ] y [:PROPIEDAD_DE]
-        await session.run(`
-            MATCH (p:Producto {SKU_Producto_Final: $sku})
-            MATCH (t:Tienda {id_tienda: $tiendaRuc})
-            MERGE (c:Cliente {DNI_O_RUC_Comprador: $dni_o_ruc})
-            ON CREATE SET 
-                c.nombre_completo = $nombre_completo,
-                c.email = $email_cliente,
-                c.wallet_address = $wallet_address
-            ON MATCH SET 
-                c.wallet_address = $wallet_address
-            SET p.status = 'VENDIDO'
-            MERGE (t)-[rv:VENDIÓ]->(p)
-            SET rv.Nro_Comprobante_Pago = $numero_boleta,
-                rv.Hash_Comprobante_Pago = $hash_fiscal_sunat,
-                rv.comprobante_simplefact = $comprobante_simplefact,
-                rv.tx_hash_venta = $txHash,
-                rv.fecha = datetime()
-            MERGE (p)-[:PROPIEDAD_DE {
-                fecha: datetime(),
-                Hash_Comprobante_Pago: $hash_fiscal_sunat,
-                Nro_Comprobante_Pago: $numero_boleta,
-                comprobante_simplefact: $comprobante_simplefact,
-                tx_hash_venta: $txHash
-            }]->(c)
-            MERGE (p)-[:VENDIDO_A {
-                fecha: datetime(),
-                Hash_Comprobante_Pago: $hash_fiscal_sunat,
-                Nro_Comprobante_Pago: $numero_boleta,
-                numero_boleta: $numero_boleta,
-                hash_fiscal_sunat: $hash_fiscal_sunat,
-                comprobante_simplefact: $comprobante_simplefact,
-                tx_hash_venta: $txHash
-            }]->(c)
-        `, {
-            sku: SKU_Producto_Final,
-            tiendaRuc,
-            dni_o_ruc: compradorDniRuc,
-            nombre_completo: nombreCliente,
-            email_cliente: emailCliente,
-            wallet_address: wallet_address_comprador,
-            hash_fiscal_sunat: hashFiscalDefinitivo,
-            numero_boleta: finalNroBoleta,
-            comprobante_simplefact: finalXmlBoleta,
-            txHash
-        });
-
-        console.log(`[API Venta] Transacción exitosa. Grafo Neo4j actualizado con [:VENDIDO_A].`);
-
-        return res.status(200).json({
-            message: 'Venta procesada y certificada con éxito en SUNAT/SimpleFact, zkSyscoin y Neo4j.',
-            sku: SKU_Producto_Final,
-            tokenId,
-            comprador: compradorDniRuc,
-            numeroBoleta: finalNroBoleta,
-            serie_numero: finalNroBoleta,
-            enlace_pdf: enlacePdf || `https://api.simplefact.pe/v1/pdf/${finalNroBoleta}`,
-            enlace_xml: enlaceXml || `https://api.simplefact.pe/v1/xml/${finalNroBoleta}`,
-            hashSUNAT: hashFiscalDefinitivo,
-            hash_fiscal_sunat: hashFiscalDefinitivo,
-            txHash
-        });
-
-    } catch (error) {
-        console.error('[API Venta] Error procesando la venta coordinada:', error);
-        return res.status(500).json({ 
-            error: 'Error interno en la transacción coordinada de venta.', 
-            details: error.message 
-        });
-    } finally {
-        await session.close();
-    }
-});
-
-/**
- * @swagger
- * /api/auth/mock-login:
- *   post:
- *     summary: Login por credenciales (Username o Email)
- *     description: Emite un token JWT firmado válido por 2 horas tras verificar las credenciales del actor (Tienda, Artesano o Cliente) en el grafo Neo4j.
- *     tags:
- *       - Autenticación y Debug
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - identifier
- *               - password
- *             properties:
- *               identifier:
- *                 type: string
- *                 description: Nombre de usuario o correo electrónico del actor.
- *                 example: "tienda_cusco"
- *               password:
- *                 type: string
- *                 description: Contraseña del actor.
- *                 example: "Tienda123!"
- *     responses:
- *       200:
- *         description: Login exitoso, devuelve el token Bearer y datos del usuario.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 accessToken:
- *                   type: string
- *                 tokenType:
- *                   type: string
- *                   example: Bearer
- *                 expiresIn:
- *                   type: string
- *                   example: 2h
- *                 type:
- *                   type: string
- *                   example: Tienda
- *                 dni_o_ruc:
- *                   type: string
- *                   example: "20600123456"
- *       401:
- *         description: Identificador o contraseña incorrectos.
- *       400:
- *         description: Error de validación Zod.
- */
-app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => {
-    const { identifier, password } = req.body;
-    const session = driver.session();
-
-    try {
-        const result = await session.run(`
-            MATCH (u)
-            WHERE (u:Artesano OR u:Tienda OR u:Cliente) 
-              AND (u.username = $identifier OR u.email = $identifier)
-            RETURN labels(u)[0] AS type, u.password AS password, 
-                   COALESCE(u.RUC_Fabricante, u.id_tienda, u.DNI_O_RUC_Comprador) AS dni_o_ruc
-        `, { identifier });
-
-        if (result.records.length === 0) {
-            return res.status(401).json({ error: 'Credenciales inválidas (usuario no encontrado).' });
-        }
-
-        const record = result.records[0];
-        const dbPassword = record.get('password');
-        const dni_o_ruc = record.get('dni_o_ruc');
-        const type = record.get('type');
-
-        if (dbPassword !== password) {
-            return res.status(401).json({ error: 'Contraseña incorrecta.' });
-        }
-
-        const token = jwt.sign(
-            { DNI_O_RUC: dni_o_ruc, type },
-            jwtSecret,
-            { expiresIn: '2h' }
-        );
-
-        return res.status(200).json({
-            accessToken: token,
-            tokenType: 'Bearer',
-            expiresIn: '2h',
-            type,
-            dni_o_ruc
-        });
-
-    } catch (error) {
-        console.error('[API Auth] Error en mock-login:', error);
-        return res.status(500).json({ error: 'Error interno en la autenticación.' });
-    } finally {
-        await session.close();
-    }
-});
-
-// ==========================================
 // E2) ENDPOINT AUXILIAR DE SEMBRADO (POST /api/debug/seed)
 // ==========================================
 /**
@@ -1847,8 +1692,15 @@ app.get('/api/admin/compras-totales', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
-// F) INICIALIZACIÓN DEL LISTENER DE EXPRESS
+// E) RUTAS DE MARKETPLACE (ESCROW)
 // ==========================================
+// F) TELEGRAM WEBHOOK Y LISTENER
+// ==========================================
+const { handleTelegramWebhook } = require('./services/telegramBot');
+app.post('/api/telegram/webhook', handleTelegramWebhook);
+
+const PORT = process.env.PORT || 3000;
+=======
 const PORT = process.env.PORT;
 const serverInstance = app.listen(PORT, () => {
     console.log(`[Server] Backend Corporativo Kipulux corriendo en http://localhost:${PORT}`);

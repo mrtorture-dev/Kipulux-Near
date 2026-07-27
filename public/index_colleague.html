@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-[#0A0A0B]">
+<html lang="es" class="h-full bg-neutral-950">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,8 +16,17 @@
                     },
                     colors: {
                         gold: {
-                            500: '#C5A059',
-                            600: '#B38F48',
+                            50: '#fdfbeb',
+                            100: '#fbf7c7',
+                            200: '#f6ee90',
+                            300: '#f0df51',
+                            400: '#eac923',
+                            500: '#d4aa12',
+                            600: '#b4840d',
+                            700: '#905e0f',
+                            800: '#764c12',
+                            900: '#643f14',
+                            950: '#3a2007',
                         }
                     }
                 }
@@ -33,53 +42,26 @@
             font-family: 'Montserrat', sans-serif;
         }
         .glass-panel {
-            background: #121214;
+            background: rgba(18, 18, 18, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .glow-gold {
-            box-shadow: none;
+            box-shadow: 0 0 25px rgba(212, 170, 18, 0.15);
         }
         .glow-gold-strong {
-            border-color: #C5A059 !important;
-        }
-        #form-transferir-tienda {
-            transition: border-color 0.6s ease-in-out;
-        }
-
-        /* Print Styles for QR Labels */
-        @media print {
-            body > * {
-                display: none !important;
-            }
-            #print-label-container, #print-label-container * {
-                display: block !important;
-                visibility: visible !important;
-            }
-            #print-label-container {
-                position: fixed !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 50mm !important;
-                height: 80mm !important;
-                padding: 4mm !important;
-                border: 1px solid #000 !important;
-                font-family: 'Outfit', sans-serif !important;
-                color: #000 !important;
-                background: #fff !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-                text-align: center !important;
-                box-sizing: border-box !important;
-                z-index: 9999999 !important;
-            }
+            box-shadow: 0 0 35px rgba(212, 170, 18, 0.35);
         }
     </style>
 </head>
-<body class="h-full text-neutral-200 flex flex-col justify-between selection:bg-[#C5A059] selection:text-neutral-950 max-w-full overflow-x-hidden bg-[#0A0A0B]">
+<body class="h-full text-neutral-100 flex flex-col justify-between selection:bg-gold-500 selection:text-neutral-950">
 
-    <!-- Paleta mate arquitectónica sólida -->
+    <!-- Background decorative gradients -->
+    <div class="fixed inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-gold-950/15 blur-[120px]"></div>
+        <div class="absolute -bottom-[30%] -right-[20%] w-[70%] h-[70%] rounded-full bg-amber-950/10 blur-[120px]"></div>
+    </div>
 
     <!-- HEADER -->
     <header class="border-b border-neutral-900 bg-neutral-950/80 backdrop-blur-md sticky top-0 z-50">
@@ -109,126 +91,21 @@
     <!-- MAIN CONTENT CONTAINER -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        <!-- TOAST CONTAINER FOR NOTIFICATIONS -->
-        <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
-
-        <!-- 360° INSPECTION MODAL -->
-        <div id="modal-inspeccion" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-            <!-- Modal Card -->
-            <div class="glass-panel max-w-2xl w-full rounded-2xl shadow-2xl overflow-hidden border border-white/10 text-xs animate-fadeIn max-h-[90vh] flex flex-col">
-                <!-- Modal Header -->
-                <div class="p-6 border-b border-neutral-900 flex justify-between items-center bg-black/40">
-                    <div>
-                        <h4 class="title-serif text-lg font-bold text-neutral-100 flex items-center gap-2">
-                            <span>👁️ Pasaporte Digital de Prenda</span>
-                            <div class="flex items-center gap-1.5">
-                                <span id="modal-sku-title" class="font-mono text-sm text-gold-500 bg-gold-950/20 px-2.5 py-1 rounded"></span>
-                                <button type="button" onclick="copyToClipboard(document.getElementById('modal-sku-title').textContent)" class="text-neutral-500 hover:text-neutral-300 focus:outline-none p-1 bg-neutral-900/60 rounded border border-neutral-800" title="Copiar SKU">
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                                </button>
-                            </div>
-                        </h4>
-                        <p class="text-[10px] text-neutral-500 mt-1">Inspección de trazabilidad on-chain y detalles de confección.</p>
-                    </div>
-                    <button type="button" onclick="closeInspeccionModal()" class="text-neutral-400 hover:text-neutral-200 transition-colors focus:outline-none p-1 bg-neutral-900 rounded-full border border-neutral-800">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
+        <!-- ALERTS CONTAINER (FLOATING) -->
+        <div id="alert-box" class="hidden fixed bottom-5 right-5 z-50 max-w-md w-full glass-panel rounded-lg shadow-xl p-4 transition-all duration-300 transform translate-y-10 opacity-0 border-l-4">
+            <div class="flex items-start">
+                <div class="flex-shrink-0" id="alert-icon"></div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-semibold text-neutral-100" id="alert-title"></p>
+                    <p class="mt-1 text-xs text-neutral-400" id="alert-desc"></p>
                 </div>
-
-                <!-- Modal Content (Scrollable) -->
-                <div class="p-6 overflow-y-auto space-y-6 flex-grow" id="modal-inspeccion-content">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Photo & Desc -->
-                        <div class="space-y-4">
-                            <div class="aspect-square bg-neutral-950 rounded-xl border border-neutral-900 overflow-hidden relative">
-                                <img id="modal-producto-foto" src="" alt="Prenda" class="w-full h-full object-cover">
-                                <span id="modal-status-badge" class="absolute top-3 left-3 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider"></span>
-                            </div>
-                            <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 space-y-1">
-                                <span class="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Descripción del Taller</span>
-                                <p id="modal-producto-descripcion" class="text-neutral-300 leading-relaxed italic"></p>
-                            </div>
-                        </div>
-
-                        <!-- Metadata details -->
-                        <div class="space-y-5">
-                            <!-- Trazabilidad Cuero -->
-                            <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 space-y-3">
-                                <span class="block text-[10px] font-bold text-gold-500 uppercase tracking-wider">Trazabilidad de Materia Prima</span>
-                                <div class="grid grid-cols-2 gap-2 text-[11px]">
-                                    <div>
-                                        <span class="text-neutral-500 block">Lote de Cuero:</span>
-                                        <span id="modal-lote-id" class="font-mono text-neutral-300"></span>
-                                    </div>
-                                    <div>
-                                        <span class="text-neutral-500 block">RUC Fabricante:</span>
-                                        <span id="modal-fabricante-ruc" class="font-mono text-neutral-300"></span>
-                                    </div>
-                                </div>
-                                <div class="text-[11px]">
-                                    <span class="text-neutral-500 block">Taller Artesano:</span>
-                                    <span id="modal-taller-nombre" class="text-neutral-300 font-semibold"></span>
-                                </div>
-                            </div>
-
-                            <!-- Web3 metadata -->
-                            <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 space-y-3">
-                                <span class="block text-[10px] font-bold text-blue-400 uppercase tracking-wider font-mono">Registro Blockchain (zkSYS)</span>
-                                <div class="text-[11px] space-y-2">
-                                    <div>
-                                        <span class="text-neutral-500 block">Token ID:</span>
-                                        <span id="modal-token-id" class="font-mono text-gold-500 font-semibold"></span>
-                                    </div>
-                                    <div>
-                                        <span class="text-neutral-500 block">Hash de Transacción Mint:</span>
-                                        <div class="flex items-center gap-1.5 mt-0.5">
-                                            <span id="modal-tx-hash" class="font-mono text-neutral-400 truncate block max-w-[200px]"></span>
-                                            <button type="button" onclick="copyToClipboard(document.getElementById('modal-tx-hash').textContent)" class="text-neutral-500 hover:text-neutral-300 focus:outline-none" title="Copiar Hash">
-                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Comercial y SUNAT -->
-                            <div id="modal-comercial-section" class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 space-y-3">
-                                <span class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Estado Comercial</span>
-                                <div class="text-[11px] space-y-2">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <span class="text-neutral-500 block">Boutique de Custodia:</span>
-                                            <span id="modal-tienda-nombre" class="text-neutral-300 font-mono"></span>
-                                        </div>
-                                        <div>
-                                            <span class="text-neutral-500 block">Cliente Final:</span>
-                                            <span id="modal-cliente-nombre" class="text-neutral-300"></span>
-                                        </div>
-                                    </div>
-                                    <div id="modal-sunat-block">
-                                        <span class="text-neutral-500 block">Hash Comprobante SUNAT (SHA-256):</span>
-                                        <span id="modal-sunat-hash" class="font-mono text-[10px] text-neutral-400 break-all block mt-0.5"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="p-6 border-t border-neutral-900 bg-black/40 flex justify-end gap-3">
-                    <button type="button" onclick="closeInspeccionModal()" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-850 text-neutral-300 font-semibold py-2.5 px-5 rounded-lg transition active:scale-95">
-                        Cerrar Visor
-                    </button>
-                    <button type="button" onclick="printQrLabel()" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-5 rounded-lg transition active:scale-95 flex items-center gap-1.5">
-                        🖨 ... Imprimir Marbete de Trazabilidad
+                <div class="ml-4 flex-shrink-0 flex">
+                    <button onclick="dismissAlert()" class="text-neutral-500 hover:text-neutral-300">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
         </div>
-
-        <!-- Hidden container for printing labels -->
-        <div id="print-label-container" class="hidden"></div>
 
         <!-- 1. LOGIN VIEW -->
         <section id="view-login" class="max-w-md mx-auto my-12 transition duration-300">
@@ -241,18 +118,32 @@
                 <form id="login-form" onsubmit="handleLogin(event)" class="space-y-6">
                     <div>
                         <label for="login-identifier" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Usuario o Correo Electrónico</label>
-                        <input type="text" id="login-identifier" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-base md:text-sm" placeholder="ej: artesano_cusco o tienda.cusco@kipulux.com">
+                        <input type="text" id="login-identifier" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="ej: artesano_cusco o tienda.cusco@kipulux.com">
                     </div>
                     <div>
                         <label for="login-password" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Contraseña</label>
-                        <input type="password" id="login-password" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-base md:text-sm" placeholder="••••••••">
+                        <input type="password" id="login-password" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="••••••••">
                     </div>
                     <button type="submit" class="w-full bg-gradient-to-r from-gold-600 to-gold-500 text-neutral-950 hover:from-gold-500 hover:to-gold-400 font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-gold-500/20 active:scale-95 transition text-sm tracking-wide uppercase">
                         Autenticar
                     </button>
                 </form>
 
-
+                <!-- Helper defaults -->
+                <div class="mt-6 pt-6 border-t border-neutral-900 text-center">
+                    <p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-3">Accesos rápidos de prueba</p>
+                    <div class="flex flex-wrap justify-center gap-2">
+                        <button onclick="fillLogin('tienda_cusco', 'Tienda123!')" class="text-[11px] bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-full transition">
+                            Tienda Cusco
+                        </button>
+                        <button onclick="fillLogin('artesano_cusco', 'Artesano123!')" class="text-[11px] bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-full transition">
+                            Artesano Cusco
+                        </button>
+                        <button onclick="fillLogin('cliente_juan', 'Cliente123!')" class="text-[11px] bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 px-3 py-1.5 rounded-full transition">
+                            Cliente Juan
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -271,13 +162,13 @@
                     <!-- Banner -->
                     <div class="glass-panel rounded-2xl p-6 glow-gold flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h3 class="title-serif text-xl font-bold text-gold-500">Módulo de Taller Artesanal</h3>
-                            <p class="text-sm text-neutral-400 mt-1">Registra las prendas de cuero premium y genera su pasaporte digital inmutable.</p>
+                            <h3 class="title-serif text-xl font-bold text-gold-500">Módulo de Manufactura Artesanal</h3>
+                            <p class="text-sm text-neutral-400 mt-1">Registra y acuña las prendas de cuero premium. Genera el pasaporte digital en la blockchain.</p>
                         </div>
                         <div class="flex-shrink-0 self-start md:self-auto bg-neutral-950 px-4 py-2.5 rounded-xl border border-neutral-900 text-xs">
                             <span class="text-neutral-500 block uppercase tracking-wider">Estado Operativo</span>
                             <span class="font-bold text-green-500 flex items-center gap-1.5 mt-0.5">
-                                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> CERTIFICACIÓN ACTIVA
+                                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> CONECTADO A BLOCKCHAIN
                             </span>
                         </div>
                     </div>
@@ -286,102 +177,46 @@
                         <!-- Form 1: Crear Prenda (Fase A) -->
                         <div class="glass-panel rounded-2xl p-6 space-y-6">
                             <div class="border-b border-neutral-900 pb-4">
-                                <h4 class="title-serif text-lg font-semibold text-neutral-100">1. Generar Pasaporte Digital de Origen</h4>
-                                <p class="text-xs text-neutral-500 mt-1">Carga la fotografía oficial y el certificado para generar el pasaporte digital de la prenda.</p>
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">1. Registro de Prenda (Fase A)</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Carga los archivos binarios IPFS y realiza el Mint del NFT.</p>
                             </div>
                             <form id="form-crear-producto" onsubmit="handleCrearProducto(event)" class="space-y-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">RUC del Artesano (Solo Lectura)</label>
-                                        <input type="text" id="artisan-ruc-display" readonly class="w-full bg-neutral-900/60 border border-neutral-900 text-neutral-400 cursor-not-allowed rounded-lg px-3 py-3 text-base md:text-sm focus:outline-none min-h-[44px]" placeholder="Cargando...">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Lote de Materia Prima (Cuero)</label>
-                                        <input type="text" name="ID_Lote_Cuero_Utilizado" id="input-lote-cuero" list="lotes-list" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="Buscar lote...">
-                                        <datalist id="lotes-list">
-                                            <option value="LOTE-NIETO-003">LOTE-NIETO-003 | Cuero Flor Vegano Cognac</option>
-                                            <option value="LOTE-HIJO-002">LOTE-HIJO-002 | Cuero Grano Entero Marrón</option>
-                                            <option value="LOTE-PADRE-001">LOTE-PADRE-001 | Lote de Cuero Padre General</option>
-                                        </datalist>
-                                    </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU del Producto Final</label>
+                                    <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: KIPU-CUERO-004">
                                 </div>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Colección</label>
-                                        <select id="select-coleccion" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]">
-                                            <option value="Clásica 1972">Clásica 1972</option>
-                                            <option value="Verano 2026">Verano 2026</option>
-                                            <option value="Edición Limitada">Edición Limitada</option>
-                                            <option value="Bespoke">Bespoke</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Color</label>
-                                        <select id="select-color" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" onchange="handleColorChange(this)">
-                                            <option value="Negro Obsidiana">Negro Obsidiana</option>
-                                            <option value="Marrón Cognac">Marrón Cognac</option>
-                                            <option value="Beige Arena">Beige Arena</option>
-                                            <option value="Rojo Oxad">Rojo Oxad</option>
-                                            <option value="Verde Esmeralda">Verde Esmeralda</option>
-                                            <option value="Azul Noche">Azul Noche</option>
-                                            <option value="Burdeos">Burdeos</option>
-                                            <option value="custom">➕ Otro / Personalizado...</option>
-                                        </select>
-                                        <input type="text" id="custom-color-input" placeholder="Escribe el color..." class="hidden mt-2 w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]">
-                                    </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">ID Lote de Cuero Utilizado</label>
+                                    <input type="text" name="ID_Lote_Cuero_Utilizado" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: LOTE-NIETO-003">
                                 </div>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU Generado (Vista Previa)</label>
-                                        <input type="text" name="SKU_Producto_Final" id="sku-producto" readonly required class="w-full bg-neutral-900/60 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-400 focus:outline-none min-h-[44px]" placeholder="Autogenerado por el sistema...">
-                                        <span id="sku-availability-indicator" class="block text-[10px] mt-1.5 font-semibold text-neutral-500">✓ SKU asignado por el sistema</span>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Unidades a Producir</label>
-                                        <input type="number" id="cantidad-unidades" min="1" max="50" value="1" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]">
-                                    </div>
-                                </div>
-
+                                
                                 <!-- File uploads -->
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <!-- Drag & Drop Photo Zone (Touch target > 44px) -->
-                                    <div id="dropzone-foto" class="bg-neutral-950 p-4 rounded-xl border-2 border-dashed border-neutral-800 hover:border-gold-500/50 flex flex-col items-center justify-center text-center cursor-pointer transition h-40 relative group" onclick="document.getElementById('file-foto').click()">
-                                        <input type="file" id="file-foto" name="Foto_Producto" accept="image/*" class="hidden" onchange="handleFotoSelection(event)">
-                                        <div id="preview-container" class="absolute inset-0 hidden bg-neutral-950 rounded-xl overflow-hidden">
-                                            <img id="foto-preview" class="w-full h-full object-cover" src="" alt="Preview">
-                                            <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                                                <span class="text-xs text-gold-500 font-bold uppercase tracking-wider">Cambiar Fotografía</span>
-                                            </div>
+                                    <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 flex flex-col justify-between h-36">
+                                        <span class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">Foto del Producto</span>
+                                        <div class="mt-2">
+                                            <input type="file" id="file-foto" name="Foto_Producto" accept="image/*" class="hidden" onchange="updateFileNameDisplay('file-foto', 'foto-display')">
+                                            <button type="button" onclick="document.getElementById('file-foto').click()" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-xs py-2 px-3 rounded-lg text-neutral-300 transition hover:border-gold-500/50">
+                                                Seleccionar Foto
+                                            </button>
                                         </div>
-                                        <div id="dropzone-text" class="flex flex-col items-center space-y-1">
-                                            <svg class="h-6 w-6 text-neutral-500 group-hover:text-gold-500 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                            <span class="block text-xs font-semibold text-neutral-400">Fotografía Oficial de la Prenda</span>
-                                            <span id="foto-display" class="text-[10px] text-neutral-500">📸 Toma una foto del producto o selecciona de tu galería</span>
-                                        </div>
+                                        <span id="foto-display" class="text-[10px] text-neutral-500 truncate block mt-1">Sin archivo seleccionado</span>
                                     </div>
 
-                                    <!-- PDF Upload (Touch target > 44px) -->
-                                    <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 flex flex-col justify-between h-40">
-                                        <span class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">Certificado de Origen (PDF)</span>
-                                        <div class="my-auto flex flex-col items-center">
+                                    <div class="bg-neutral-950 p-4 rounded-xl border border-neutral-900 flex flex-col justify-between h-36">
+                                        <span class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider">PDF Certificado Previo</span>
+                                        <div class="mt-2">
                                             <input type="file" id="file-pdf" name="PDF_Certificado_Previo" accept="application/pdf" class="hidden" onchange="updateFileNameDisplay('file-pdf', 'pdf-display')">
-                                            <button type="button" onclick="document.getElementById('file-pdf').click()" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-xs py-3 px-3 rounded-lg text-neutral-300 transition hover:border-gold-500/50 min-h-[44px] flex items-center justify-center font-semibold">
+                                            <button type="button" onclick="document.getElementById('file-pdf').click()" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-xs py-2 px-3 rounded-lg text-neutral-300 transition hover:border-gold-500/50">
                                                 Seleccionar PDF
                                             </button>
                                         </div>
-                                        <span id="pdf-display" class="text-[10px] text-neutral-500 truncate block text-center mt-1">Sin certificado seleccionado</span>
+                                        <span id="pdf-display" class="text-[10px] text-neutral-500 truncate block mt-1">Sin archivo seleccionado</span>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Descripción Artesanal (Opcional)</label>
-                                    <textarea id="descripcion-producto" name="Descripcion" rows="2" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="Detalles de confección: costuras a mano, herrajes, etc."></textarea>
-                                </div>
-
-                                <button type="submit" id="btn-crear-producto" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-3 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95 min-h-[44px]">
-                                    Generar Pasaporte Digital de Origen
+                                <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                    Registrar y Mintear NFT (IPFS)
                                 </button>
                             </form>
                         </div>
@@ -389,94 +224,22 @@
                         <!-- Form 2: Transferencia B2B (Fase B) -->
                         <div class="glass-panel rounded-2xl p-6 space-y-6">
                             <div class="border-b border-neutral-900 pb-4">
-                                <h4 class="title-serif text-lg font-semibold text-neutral-100">2. Confirmar Despacho a Boutique</h4>
-                                <p class="text-xs text-neutral-500 mt-1">Envía la custodia del pasaporte digital de la prenda a la boutique de destino.</p>
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100">2. Despacho y Transferencia B2B (Fase B)</h4>
+                                <p class="text-xs text-neutral-500 mt-1">Transfiere la custodia digital y física del NFT de la prenda a la Tienda de destino.</p>
                             </div>
                             <form id="form-transferir-tienda" onsubmit="handleTransferirTienda(event)" class="space-y-4">
                                 <div>
-                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU de la Prenda</label>
-                                    <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: KIPU-CUERO-004">
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU del Producto</label>
+                                    <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: KIPU-CUERO-004">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Boutique de Destino</label>
-                                    <input type="text" name="RUC_Tienda_Destino" id="select-tienda-destino" list="tiendas-list" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="Escribe para buscar boutique...">
-                                    <datalist id="tiendas-list">
-                                        <option value="20600123456">ALDA Boutique - Cusco</option>
-                                        <option value="20600999999">ALDA Boutique - Miraflores</option>
-                                        <option value="20600888888">ALDA Boutique - San Isidro</option>
-                                        <option value="20600777777">ALDA Boutique - Jockey Plaza</option>
-                                    </datalist>
+                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">RUC de la Tienda Destino</label>
+                                    <input type="text" name="RUC_Tienda_Destino" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: 20600123456">
                                 </div>
-                                <button type="submit" id="btn-transferir-tienda" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-gold-500/50 text-gold-500 hover:text-gold-400 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95 min-h-[44px]">
-                                    Confirmar Despacho a Boutique
+                                <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-gold-500/50 text-gold-500 hover:text-gold-400 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                    Transferir Custodia NFT
                                 </button>
                             </form>
-                        </div>
-                    </div>
-
-                    <!-- MIS PRODUCTOS REGISTRADOS TABLE -->
-                    <div class="glass-panel rounded-2xl p-6 space-y-6 mt-8">
-                        <div class="border-b border-neutral-900 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                            <div>
-                                <h4 class="title-serif text-lg font-semibold text-neutral-100">Mis Productos Registrados</h4>
-                                <p class="text-xs text-neutral-500 mt-1">Lista de prendas de cuero premium fabricadas y su estado de custodia digital.</p>
-                            </div>
-                            <button type="button" onclick="loadArtisanProducts()" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-4 rounded-lg text-xs transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 self-start sm:self-auto min-h-[44px]">
-                                🔄 Sincronizar Producción
-                            </button>
-                        </div>
-
-                        <!-- Search, Filter & Sort Toolbar -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-neutral-950 p-4 rounded-xl border border-neutral-900 text-xs">
-                            <div>
-                                <label class="block text-neutral-400 font-semibold mb-1.5">🔍 Buscar Prenda</label>
-                                <input type="text" id="input-busqueda-tabla" placeholder="Buscar por SKU, Lote o Descripción..." class="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]">
-                            </div>
-                            <div>
-                                <label class="block text-neutral-400 font-semibold mb-1.5">Estado del Pasaporte</label>
-                                <select id="filtro-estado-tabla" class="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]">
-                                    <option value="Todos">Todos</option>
-                                    <option value="ORIGINADO">Originado</option>
-                                    <option value="EN_TIENDA">En Boutique</option>
-                                    <option value="VENDIDO">Vendido</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-neutral-400 font-semibold mb-1.5">Ordenar por</label>
-                                <select id="sort-tabla" class="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]">
-                                    <option value="Recientes">Más Recientes Primero</option>
-                                    <option value="Antiguos">Más Antiguos Primero</option>
-                                    <option value="SKU-AZ">Por SKU (A-Z)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="w-full overflow-x-auto custom-scrollbar">
-                            <table class="w-full text-left text-xs border-collapse">
-                                <thead>
-                                    <tr class="border-b border-neutral-900 text-neutral-400 uppercase tracking-wider">
-                                        <th class="py-3 px-4">SKU Prenda</th>
-                                        <th class="py-3 px-4 text-center">Token ID (zkSYS)</th>
-                                        <th class="py-3 px-4 text-center">Fecha Registro</th>
-                                        <th class="py-3 px-4 text-center">Estado Pasaporte</th>
-                                        <th class="py-3 px-4 text-right">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="artisan-products-table-body" class="text-neutral-300 divide-y divide-neutral-900">
-                                    <!-- Dinámicamente inyectados -->
-                                </tbody>
-                            </table>
-                            <div id="artisan-products-empty" class="text-center py-8 text-neutral-500 hidden">
-                                No se encontraron prendas con los criterios seleccionados.
-                            </div>
-                        </div>
-
-                        <!-- Pagination Controls -->
-                        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-neutral-900 pt-4 text-xs text-neutral-400">
-                            <span id="artisan-products-count-label">Mostrando 0 - 0 de 0 prendas</span>
-                            <div class="flex items-center gap-1" id="artisan-products-pagination">
-                                <!-- Dinámicamente inyectados -->
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -500,21 +263,21 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">RUC del Fabricante</label>
-                                        <input type="text" name="RUC_Fabricante" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="11 dígitos" maxlength="11" pattern="\d{11}">
+                                        <input type="text" name="RUC_Fabricante" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="11 dígitos" maxlength="11" pattern="\d{11}">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Nombre del Taller</label>
-                                        <input type="text" name="nombre_taller" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="Mínimo 3 caracteres">
+                                        <input type="text" name="nombre_taller" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="Mínimo 3 caracteres">
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Correo Electrónico</label>
-                                        <input type="email" name="email" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: taller@empresa.com">
+                                        <input type="email" name="email" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: taller@empresa.com">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Ubigeo (6 dígitos)</label>
-                                        <input type="text" name="ubigeo" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="080101" maxlength="6" pattern="\d{6}">
+                                        <input type="text" name="ubigeo" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="080101" maxlength="6" pattern="\d{6}">
                                     </div>
                                 </div>
                                 <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
@@ -546,21 +309,21 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU Producto Final</label>
-                                        <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: KIPU-CUERO-001">
+                                        <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: KIPU-CUERO-001">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">DNI/RUC del Comprador</label>
-                                        <input type="text" name="DNI_O_RUC_Comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="8 u 11 dígitos">
+                                        <input type="text" name="DNI_O_RUC_Comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="8 u 11 dígitos">
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Número de Boleta/Factura</label>
-                                        <input type="text" name="Nro_Comprobante_Pago" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: B001-00029384" pattern="^[BF][A-Z0-9]{3}-\d+$">
+                                        <input type="text" name="Nro_Comprobante_Pago" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="ej: B001-00029384" pattern="^[BF][A-Z0-9]{3}-\d+$">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Wallet EVM Comprador</label>
-                                        <input type="text" name="wallet_address_comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="0x..." pattern="^0x[0-9a-fA-F]{40}$">
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Wallet EVM Comprador (Opcional - KMS Auto)</label>
+                                        <input type="text" name="wallet_address_comprador" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-gold-500" placeholder="Se generará sola con KMS si se deja vacío" pattern="^0x[0-9a-fA-F]{40}$">
                                     </div>
                                 </div>
                                 
@@ -594,7 +357,7 @@
                                 🔄 Sincronizar WooCommerce
                             </button>
                         </div>
-                        <div class="w-full overflow-x-auto custom-scrollbar">
+                        <div class="overflow-x-auto">
                             <table class="w-full text-left text-xs border-collapse">
                                 <thead>
                                     <tr class="border-b border-neutral-900 text-neutral-400 uppercase tracking-wider">
@@ -763,14 +526,22 @@
 
     </main>
 
-
+    <!-- FLOATING SEEDER BUTTON -->
+    <div class="fixed bottom-5 left-5 z-40">
+        <button onclick="seedDatabase()" id="btn-seed" class="flex items-center space-x-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 hover:border-gold-500/50 text-gold-500 px-4 py-2.5 rounded-full shadow-lg transition text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
+            <span>Sembrar Base de Datos Neo4j</span>
+        </button>
+    </div>
 
     <!-- FOOTER -->
     <footer class="border-t border-neutral-900 bg-neutral-950/80 backdrop-blur-md py-6 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-4">
             <p>&copy; 2026 KIPULUX. Todos los derechos reservados. Tecnología Web2.5 & Blockchain zkSyscoin.</p>
             <div class="flex space-x-6">
-                <span class="text-neutral-600">Acceso Seguro SSL</span>
+                <a href="/api-docs" target="_blank" class="hover:text-gold-500 transition">Documentación API (Swagger UI)</a>
+                <span class="text-neutral-800">|</span>
+                <span class="text-neutral-600">IPFS Local Mock Activo</span>
             </div>
         </div>
     </footer>
@@ -784,8 +555,6 @@
         // Initialize App on load
         window.addEventListener('DOMContentLoaded', () => {
             checkAuth();
-            setupDropzone();
-            setupTableListeners();
         });
 
         // 1. AUTHENTICATION & SESSION MANAGEMENT
@@ -796,14 +565,6 @@
                 if (payload && payload.DNI_O_RUC) {
                     currentUser = payload;
                     showDashboard();
-                    
-                    // Autofill RUC Artesano if applicable
-                    if (currentUser.type === 'Artesano') {
-                        const rucInput = document.getElementById('artisan-ruc-display');
-                        if (rucInput) {
-                            rucInput.value = currentUser.DNI_O_RUC;
-                        }
-                    }
                     return;
                 }
             }
@@ -814,10 +575,7 @@
         function decodeJWT(token) {
             try {
                 const base64Url = token.split('.')[1];
-                let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                while (base64.length % 4) {
-                    base64 += '=';
-                }
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                 const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
                     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                 }).join(''));
@@ -948,10 +706,6 @@
                 fetchClientPurchases();
             } else if (roleName === 'Tienda') {
                 loadAdminDashboard();
-            } else if (roleName === 'Artesano') {
-                setupDraftListeners();
-                loadDraft();
-                loadArtisanProducts();
             }
         }
 
@@ -960,91 +714,44 @@
             e.preventDefault();
             const token = localStorage.getItem('accessToken');
             const form = document.getElementById('form-crear-producto');
-            const submitBtn = document.getElementById('btn-crear-producto');
+            const formData = new FormData(form);
 
-            const fileFoto = compressedFotoBlob || document.getElementById('file-foto').files[0];
+            // Manual file verification since Option 2 specifies manual file validation
+            const fileFoto = document.getElementById('file-foto').files[0];
             const filePdf = document.getElementById('file-pdf').files[0];
 
             if (!fileFoto) {
-                showToast('error', 'Falta Foto', 'Por favor, selecciona una foto del producto.');
+                showAlert('error', 'Falta Foto', 'Por favor, selecciona una foto del producto.');
                 return;
             }
             if (!filePdf) {
-                showToast('error', 'Falta Certificado PDF', 'Por favor, selecciona el certificado previo en formato PDF.');
+                showAlert('error', 'Falta Certificado PDF', 'Por favor, selecciona el certificado previo en formato PDF.');
                 return;
             }
 
-            const unitsInput = document.getElementById('cantidad-unidades');
-            const units = parseInt(unitsInput ? unitsInput.value : '1') || 1;
-            const baseSku = form.querySelector('[name="SKU_Producto_Final"]').value.trim();
-
-            if (!baseSku) {
-                showToast('error', 'Falta SKU', 'Por favor, introduce o genera el SKU.');
-                return;
-            }
-
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
             try {
-                let successCount = 0;
-                for (let i = 1; i <= units; i++) {
-                    const currentSku = units === 1 ? baseSku : `${baseSku}-${i}`;
-                    
-                    submitBtn.innerHTML = `Registrando ${i}/${units}...`;
-                    showToast('info', 'Registrando Prenda', `Procesando pasaporte digital ${i} de ${units} (SKU: ${currentSku})...`);
+                showAlert('info', 'Registrando Prenda', 'Subiendo archivos a local IPFS y acuñando NFT en la blockchain...');
+                const res = await fetch(`${API_BASE}/productos/crear`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                        // Note: Do NOT set Content-Type header when sending FormData! The browser sets it automatically with the multipart boundary.
+                    },
+                    body: formData
+                });
 
-                    const formData = new FormData();
-                    formData.append('SKU_Producto_Final', currentSku);
-                    formData.append('ID_Lote_Cuero_Utilizado', form.querySelector('[name="ID_Lote_Cuero_Utilizado"]').value.trim());
-                    formData.append('Foto_Producto', fileFoto);
-                    formData.append('PDF_Certificado_Previo', filePdf);
-                    formData.append('Descripcion', document.getElementById('descripcion-producto').value.trim());
-
-                    const res = await fetch(`${API_BASE}/productos/crear`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: formData
-                    });
-
-                    const data = await res.json();
-                    if (!res.ok) {
-                        throw new Error(data.error || `Error en unidad ${i} (${currentSku})`);
-                    }
-                    successCount++;
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error al registrar prenda');
                 }
 
-                showToast('success', 'Registro Exitoso', `Certificado de origen registrado y vinculado al inventario (${successCount} unidades).`);
+                showAlert('success', 'Registro Exitoso', `Prenda registrada con SKU: ${data.SKU_Producto_Final}. NFT TokenID: ${data.tokenId}.`);
                 form.reset();
-                
-                localStorage.removeItem('artisan_form_draft');
-                
-                compressedFotoBlob = null;
-                document.getElementById('preview-container').classList.add('hidden');
-                document.getElementById('foto-preview').src = '';
-                document.getElementById('pdf-display').textContent = 'Sin certificado seleccionado';
-                document.getElementById('custom-color-input').classList.add('hidden');
-                document.getElementById('custom-color-input').value = '';
-                
-                if (currentUser && currentUser.DNI_O_RUC) {
-                    document.getElementById('artisan-ruc-display').value = currentUser.DNI_O_RUC;
-                }
-
-                const sortSelect = document.getElementById('sort-tabla');
-                if (sortSelect) {
-                    sortSelect.value = 'Recientes';
-                }
-                currentPage = 1;
-                loadArtisanProducts();
+                document.getElementById('foto-display').textContent = 'Sin archivo seleccionado';
+                document.getElementById('pdf-display').textContent = 'Sin archivo seleccionado';
 
             } catch (err) {
-                showToast('error', 'Error al registrar', err.message);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
-                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                showAlert('error', 'Fallo al Crear Prenda', err.message);
             }
         }
 
@@ -1052,17 +759,11 @@
             e.preventDefault();
             const token = localStorage.getItem('accessToken');
             const form = document.getElementById('form-transferir-tienda');
-            const submitBtn = document.getElementById('btn-transferir-tienda');
-            const sku = form.querySelector('[name="SKU_Producto_Final"]').value.trim();
-            const ruc = form.querySelector('[name="RUC_Tienda_Destino"]').value.trim();
-
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = 'Despachando...';
-            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            const sku = form.querySelector('[name="SKU_Producto_Final"]').value;
+            const ruc = form.querySelector('[name="RUC_Tienda_Destino"]').value;
 
             try {
-                showToast('info', 'Procesando Despacho B2B', 'Transfiriendo custodia de la prenda...');
+                showAlert('info', 'Procesando Transferencia B2B', 'Relayando transacción de transferencia de NFT a la Tienda...');
                 const res = await fetch(`${API_BASE}/productos/transferir-a-tienda`, {
                     method: 'POST',
                     headers: {
@@ -1077,18 +778,11 @@
                     throw new Error(data.error || 'Error en transferencia B2B');
                 }
 
-                showToast('success', 'Despacho Confirmado', `Custodia del SKU ${sku} transferida con éxito a la Tienda.`);
+                showAlert('success', 'Transferencia Confirmada', `Custodia del SKU ${sku} transferida con éxito a la Tienda.`);
                 form.reset();
-                
-                // Refresh product table
-                loadArtisanProducts();
 
             } catch (err) {
-                showToast('error', 'Fallo de Transferencia', err.message);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
-                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                showAlert('error', 'Fallo de Transferencia', err.message);
             }
         }
 
@@ -1306,7 +1000,7 @@
                     
                     // Show full ancestry sequence text
                     const lotNames = data.lotes.map(l => l.ID_Lote_Cuero_Utilizado);
-                    document.getElementById('tree-lote-ancestry').textContent = lotNames.join(' > ');
+                    document.getElementById('tree-lote-ancestry').textContent = lotNames.join(' ➔ ');
                     
                     // Add PDF download link if stage 1/2 cert is there
                     const pdfLoteContainer = document.getElementById('tree-pdf-lote-container');
@@ -1495,628 +1189,49 @@
             }
         }
 
-        // 7. TOAST FLOATING ALERTS SYSTEM
-        window.showToast = function(type, title, desc) {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
+        // 7. GLOBAL ALERTS SYSTEM
+        let alertTimeout = null;
+        function showAlert(type, title, desc) {
+            const alertBox = document.getElementById('alert-box');
+            const alertTitle = document.getElementById('alert-title');
+            const alertDesc = document.getElementById('alert-desc');
+            const alertIcon = document.getElementById('alert-icon');
 
-            const toast = document.createElement('div');
-            toast.className = "pointer-events-auto w-full glass-panel rounded-xl shadow-2xl p-4 border-l-4 transition-all duration-300 transform translate-x-10 opacity-0 flex gap-3";
-            
-            let borderColor = 'border-gold-500 bg-gold-950/15';
-            let icon = `<svg class="h-5 w-5 text-gold-500 animate-pulse flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            alertTitle.textContent = title;
+            alertDesc.textContent = desc;
+
+            // Set colors & icons based on type
+            alertBox.className = "fixed bottom-5 right-5 z-50 max-w-md w-full glass-panel rounded-xl shadow-xl p-4 border-l-4 transition-all duration-300 transform";
             
             if (type === 'success') {
-                borderColor = 'border-emerald-500 bg-emerald-950/20';
-                icon = `<svg class="h-5 w-5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                alertBox.classList.add('border-emerald-500', 'bg-emerald-950/20');
+                alertIcon.innerHTML = `<svg class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
             } else if (type === 'error') {
-                borderColor = 'border-rose-500 bg-rose-950/20';
-                icon = `<svg class="h-5 w-5 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
-            } else if (type === 'warning' || type === 'info') {
-                borderColor = 'border-amber-500 bg-amber-950/20';
-                icon = `<svg class="h-5 w-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+                alertBox.classList.add('border-rose-500', 'bg-rose-950/20');
+                alertIcon.innerHTML = `<svg class="h-5 w-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+            } else if (type === 'info') {
+                alertBox.classList.add('border-gold-500', 'bg-gold-950/10');
+                alertIcon.innerHTML = `<svg class="h-5 w-5 text-gold-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
             }
 
-            toast.classList.add(...borderColor.split(' '));
-            
-            toast.innerHTML = `
-                ${icon}
-                <div class="flex-grow min-w-0">
-                    <h5 class="text-xs font-bold text-neutral-100">${title}</h5>
-                    <p class="text-[11px] text-neutral-400 mt-0.5 leading-relaxed truncate">${desc}</p>
-                </div>
-                <button type="button" class="text-neutral-500 hover:text-neutral-300 transition-colors self-start focus:outline-none" onclick="this.parentElement.remove()">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            `;
+            // Animate In
+            alertBox.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+            alertBox.classList.add('translate-y-0', 'opacity-100');
 
-            container.appendChild(toast);
+            // Auto-dismiss
+            if (alertTimeout) clearTimeout(alertTimeout);
+            alertTimeout = setTimeout(() => {
+                dismissAlert();
+            }, 6000);
+        }
 
+        function dismissAlert() {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.classList.remove('translate-y-0', 'opacity-100');
+            alertBox.classList.add('translate-y-10', 'opacity-0');
             setTimeout(() => {
-                toast.classList.remove('translate-x-10', 'opacity-0');
-                toast.classList.add('translate-x-0', 'opacity-100');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.remove('translate-x-0', 'opacity-100');
-                toast.classList.add('translate-x-10', 'opacity-0');
-                setTimeout(() => {
-                    toast.remove();
-                }, 300);
-            }, 4000);
-        };
-
-        // Alias for compatibility
-        window.showAlert = window.showToast;
-
-        // 8. OPTIMIZACIÓN PANEL ARTESANO
-        let compressedFotoBlob = null;
-        let allArtisanProducts = [];
-        let currentPage = 1;
-        const rowsPerPage = 10;
-
-        window.handleColorChange = function(select) {
-            const customColorInput = document.getElementById('custom-color-input');
-            if (select.value === 'custom') {
-                customColorInput.classList.remove('hidden');
-                customColorInput.required = true;
-            } else {
-                customColorInput.classList.add('hidden');
-                customColorInput.required = false;
-            }
-            generateAutoSku();
-            saveDraft();
-        };
-
-        window.triggerAutoSkuGeneration = function() {
-            generateAutoSku();
-        };
-
-        function generateAutoSku() {
-            const skuInput = document.getElementById('sku-producto');
-            if (!skuInput) return;
-
-            const colSelect = document.getElementById('select-coleccion');
-            const colorSelect = document.getElementById('select-color');
-            const customColorInput = document.getElementById('custom-color-input');
-            const loteInput = document.getElementById('input-lote-cuero');
-
-            if (!colSelect || !colorSelect || !loteInput) return;
-
-            // 1. COD_COL
-            let codCol = 'GEN';
-            const colVal = colSelect.value;
-            if (colVal === 'Clásica 1972') codCol = 'CLA';
-            else if (colVal === 'Verano 2026') codCol = 'VER';
-            else if (colVal === 'Edición Limitada') codCol = 'LIM';
-            else if (colVal === 'Bespoke') codCol = 'BES';
-            else codCol = colVal.substring(0, 3).toUpperCase();
-
-            // 2. COD_COLOR
-            let codColor = 'OTH';
-            const colorVal = colorSelect.value;
-            if (colorVal === 'Negro Obsidiana') codColor = 'OBS';
-            else if (colorVal === 'Marrón Cognac') codColor = 'COG';
-            else if (colorVal === 'Beige Arena') codColor = 'ARE';
-            else if (colorVal === 'Rojo Oxad') codColor = 'OXA';
-            else if (colorVal === 'Verde Esmeralda') codColor = 'ESM';
-            else if (colorVal === 'Azul Noche') codColor = 'NOC';
-            else if (colorVal === 'Burdeos') codColor = 'BUR';
-            else if (colorVal === 'custom') {
-                const customVal = customColorInput ? customColorInput.value.trim() : '';
-                codColor = customVal ? customVal.substring(0, 3).toUpperCase() : 'OTH';
-            }
-
-            if (!loteInput.value.trim()) {
-                skuInput.value = '';
-                return;
-            }
-
-            // 3. SECUENCIAL_INCREMENTAL
-            const prefix = `ALD-${codCol}-${codColor}-`;
-            let maxSeq = 0;
-            allArtisanProducts.forEach(p => {
-                if (p.SKU_Producto_Final && p.SKU_Producto_Final.startsWith(prefix)) {
-                    const remainder = p.SKU_Producto_Final.substring(prefix.length);
-                    const seqBase = remainder.split('-')[0];
-                    const seqNum = parseInt(seqBase, 10);
-                    if (!isNaN(seqNum) && seqNum > maxSeq) {
-                        maxSeq = seqNum;
-                    }
-                }
-            });
-            const nextSeq = (maxSeq + 1).toString().padStart(4, '0');
-
-            skuInput.value = `${prefix}${nextSeq}`;
-        }
-
-        function saveDraft() {
-            if (currentUser && currentUser.type === 'Artesano') {
-                const draft = {
-                    lote: document.getElementById('input-lote-cuero')?.value || '',
-                    coleccion: document.getElementById('select-coleccion')?.value || '',
-                    color: document.getElementById('select-color')?.value || '',
-                    customColor: document.getElementById('custom-color-input')?.value || '',
-                    descripcion: document.getElementById('descripcion-producto')?.value || '',
-                    unidades: document.getElementById('cantidad-unidades')?.value || '1'
-                };
-                localStorage.setItem('artisan_form_draft', JSON.stringify(draft));
-            }
-        }
-
-        function loadDraft() {
-            if (currentUser && currentUser.type === 'Artesano') {
-                const draftStr = localStorage.getItem('artisan_form_draft');
-                if (draftStr) {
-                    try {
-                        const draft = JSON.parse(draftStr);
-                        if (draft.lote) document.getElementById('input-lote-cuero').value = draft.lote;
-                        if (draft.coleccion) document.getElementById('select-coleccion').value = draft.coleccion;
-                        if (draft.color) {
-                            const selectColor = document.getElementById('select-color');
-                            selectColor.value = draft.color;
-                            if (draft.color === 'custom') {
-                                const customInput = document.getElementById('custom-color-input');
-                                customInput.value = draft.customColor || '';
-                                customInput.classList.remove('hidden');
-                            }
-                        }
-                        if (draft.descripcion) document.getElementById('descripcion-producto').value = draft.descripcion;
-                        if (draft.unidades) document.getElementById('cantidad-unidades').value = draft.unidades;
-                    } catch (e) {
-                        console.error("Error loading draft:", e);
-                    }
-                }
-                generateAutoSku();
-            }
-        }
-
-        function setupDraftListeners() {
-            const fields = [
-                'input-lote-cuero',
-                'select-coleccion',
-                'select-color',
-                'custom-color-input',
-                'descripcion-producto',
-                'cantidad-unidades'
-            ];
-            fields.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.addEventListener('input', () => {
-                        saveDraft();
-                        generateAutoSku();
-                    });
-                    el.addEventListener('change', () => {
-                        saveDraft();
-                        generateAutoSku();
-                    });
-                }
-            });
-        }
-
-        function compressImage(file, maxWidth, quality, callback) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > maxWidth) {
-                        height = Math.round((height * maxWidth) / width);
-                        width = maxWidth;
-                    }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    canvas.toBlob(function(blob) {
-                        callback(blob);
-                    }, 'image/jpeg', quality);
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function processSelectedFoto(file) {
-            if (!file || !file.type.startsWith('image/')) {
-                showToast('error', 'Formato Inválido', 'El archivo debe ser una imagen (JPG o PNG).');
-                return;
-            }
-            
-            showFotoPreview(file);
-
-            // Compress client-side
-            compressImage(file, 1920, 0.85, (blob) => {
-                compressedFotoBlob = blob;
-                console.log(`Foto comprimida. Original: ${(file.size/1024).toFixed(1)}KB, Comprimida: ${(blob.size/1024).toFixed(1)}KB`);
-            });
-        }
-
-        function setupDropzone() {
-            const dropzone = document.getElementById('dropzone-foto');
-            if (!dropzone) return;
-
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropzone.addEventListener(eventName, preventDefaults, false);
-            });
-
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropzone.addEventListener(eventName, () => {
-                    dropzone.classList.remove('border-neutral-800');
-                    dropzone.classList.add('border-gold-500');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropzone.addEventListener(eventName, () => {
-                    dropzone.classList.add('border-neutral-800');
-                    dropzone.classList.remove('border-gold-500');
-                }, false);
-            });
-
-            dropzone.addEventListener('drop', (e) => {
-                const dt = e.dataTransfer;
-                const file = dt.files[0];
-                if (file) {
-                    const inputFoto = document.getElementById('file-foto');
-                    inputFoto.files = dt.files;
-                    processSelectedFoto(file);
-                }
-            }, false);
-        }
-
-        function showFotoPreview(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('foto-preview').src = e.target.result;
-                document.getElementById('preview-container').classList.remove('hidden');
-            }
-            reader.readAsDataURL(file);
-        }
-
-        window.handleFotoSelection = function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                processSelectedFoto(file);
-            }
-        }
-
-        function setupTableListeners() {
-            const searchInput = document.getElementById('input-busqueda-tabla');
-            const stateFilter = document.getElementById('filtro-estado-tabla');
-            const sortSelect = document.getElementById('sort-tabla');
-
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    currentPage = 1;
-                    renderArtisanProductsTable();
-                });
-            }
-            if (stateFilter) {
-                stateFilter.addEventListener('change', () => {
-                    currentPage = 1;
-                    renderArtisanProductsTable();
-                });
-            }
-            if (sortSelect) {
-                sortSelect.addEventListener('change', () => {
-                    renderArtisanProductsTable();
-                });
-            }
-        }
-
-        async function loadArtisanProducts() {
-            const tableBody = document.getElementById('artisan-products-table-body');
-            const emptyState = document.getElementById('artisan-products-empty');
-            if (!tableBody || !currentUser || currentUser.type !== 'Artesano') return;
-
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="py-8 text-center text-neutral-500">
-                        <svg class="h-5 w-5 animate-spin mx-auto text-gold-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
-                        Sincronizando producción...
-                    </td>
-                </tr>
-            `;
-            emptyState.classList.add('hidden');
-
-            try {
-
-                const token = localStorage.getItem('accessToken');
-                const res = await fetch(`${API_BASE}/productos/artesano/${currentUser.DNI_O_RUC}?_t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!res.ok) throw new Error('No se pudieron obtener tus productos.');
-
-                allArtisanProducts = await res.json();
-                currentPage = 1;
-                renderArtisanProductsTable();
-                generateAutoSku();
-            } catch (err) {
-                showToast('error', 'Error Cargar Productos', err.message);
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="py-8 text-center text-rose-500">
-                            Fallo al obtener productos: ${err.message}
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-
-        window.renderArtisanProductsTable = function() {
-            const tableBody = document.getElementById('artisan-products-table-body');
-            const emptyState = document.getElementById('artisan-products-empty');
-            const countLabel = document.getElementById('artisan-products-count-label');
-            const paginationContainer = document.getElementById('artisan-products-pagination');
-            
-            if (!tableBody) return;
-
-            // 1. Filter
-            const searchVal = document.getElementById('input-busqueda-tabla')?.value.toLowerCase().trim() || '';
-            const stateVal = document.getElementById('filtro-estado-tabla')?.value || 'Todos';
-
-            let filtered = allArtisanProducts.filter(p => {
-                // state
-                if (stateVal !== 'Todos' && p.status !== stateVal) return false;
-                
-                // search term (SKU, descripcion, lote)
-                if (searchVal) {
-                    const skuMatch = p.SKU_Producto_Final?.toLowerCase().includes(searchVal);
-                    const descMatch = p.Descripcion?.toLowerCase().includes(searchVal);
-                    const loteMatch = p.ID_Lote_Cuero_Utilizado?.toLowerCase().includes(searchVal);
-                    return skuMatch || descMatch || loteMatch;
-                }
-                return true;
-            });
-
-            const sortVal = document.getElementById('sort-tabla')?.value || 'Recientes';
-            if (sortVal === 'Recientes') {
-                filtered.sort((a, b) => (b.fecha_creacion || '').localeCompare(a.fecha_creacion || ''));
-            } else if (sortVal === 'Antiguos') {
-                filtered.sort((a, b) => (a.fecha_creacion || '').localeCompare(b.fecha_creacion || ''));
-            } else if (sortVal === 'SKU-AZ') {
-                filtered.sort((a, b) => (a.SKU_Producto_Final || '').localeCompare(b.SKU_Producto_Final || ''));
-            }
-            // 3. Paginate
-            const totalItems = filtered.length;
-            const totalPages = Math.ceil(totalItems / rowsPerPage) || 1;
-            
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            const startIndex = (currentPage - 1) * rowsPerPage;
-            const endIndex = Math.min(startIndex + rowsPerPage, totalItems);
-            const paginatedItems = filtered.slice(startIndex, endIndex);
-
-            tableBody.innerHTML = '';
-            
-            if (totalItems === 0) {
-                emptyState.classList.remove('hidden');
-                countLabel.textContent = `Mostrando 0 - 0 de 0 prendas`;
-                paginationContainer.innerHTML = '';
-                return;
-            } else {
-                emptyState.classList.add('hidden');
-            }
-
-            countLabel.textContent = `Mostrando ${startIndex + 1} - ${endIndex} de ${totalItems} prendas`;
-
-            paginatedItems.forEach(p => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-neutral-900/40 transition duration-150 border-b border-neutral-900/60';
-
-                let statusBadge = '';
-                if (p.status === 'ORIGINADO') {
-                    statusBadge = `<span class="bg-blue-950/80 border border-blue-800 text-blue-400 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Origen Registrado</span>`;
-                } else if (p.status === 'EN_TIENDA') {
-                    statusBadge = `<span class="bg-amber-950/80 border border-amber-800 text-amber-500 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">En Boutique</span>`;
-                } else if (p.status === 'VENDIDO') {
-                    statusBadge = `<span class="bg-emerald-950/80 border border-emerald-800 text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Vendido a Cliente</span>`;
-                } else {
-                    statusBadge = `<span class="bg-neutral-950/80 border border-neutral-800 text-neutral-400 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">${p.status}</span>`;
-                }
-
-                const dateString = p.fecha_creacion ? new Date(p.fecha_creacion).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
-
-                const b2bAction = p.status === 'ORIGINADO' 
-                    ? `<button onclick="prepareB2BTransfer('${p.SKU_Producto_Final}')" class="bg-[#C5A059] text-neutral-950 hover:bg-[#B38F48] font-medium px-2.5 py-1 rounded-md text-[10px] uppercase transition-colors tracking-wide">Despachar</button>`
-                    : ``;
-
-                const actionBtns = `
-                    <div class="flex items-center justify-end gap-2">
-                        <button onclick="openInspeccionModal('${p.SKU_Producto_Final}')" class="bg-transparent border border-neutral-800 text-neutral-300 hover:bg-neutral-800/50 hover:text-white px-2.5 py-1 rounded-md text-[10px] transition-colors">Ver</button>
-                        ${b2bAction}
-                    </div>
-                `;
-
-                row.innerHTML = `
-                    <td class="py-3.5 px-4 font-semibold text-neutral-200 font-mono">${p.SKU_Producto_Final}</td>
-                    <td class="py-3.5 px-4 text-center font-mono text-[#D4AF37]">${p.nft_token_id || 'N/A'}</td>
-                    <td class="py-3.5 px-4 text-center text-neutral-400 font-mono">${dateString}</td>
-                    <td class="py-3.5 px-4 text-center">${statusBadge}</td>
-                    <td class="py-3.5 px-4 text-right">${actionBtns}</td>
-                `;
-                tableBody.appendChild(row);
-            });
-
-            // 4. Pagination buttons
-            paginationContainer.innerHTML = '';
-            
-            // Prev Button
-            const prevBtn = document.createElement('button');
-            prevBtn.className = `px-3 py-1.5 rounded-md border border-neutral-800 font-medium text-[10px] transition ${currentPage === 1 ? 'opacity-30 cursor-not-allowed text-neutral-500' : 'bg-[#18181B] hover:bg-neutral-800/50 text-neutral-300'}`;
-            prevBtn.textContent = '<';
-            prevBtn.disabled = (currentPage === 1);
-            if (currentPage > 1) {
-                prevBtn.onclick = () => {
-                    currentPage--;
-                    renderArtisanProductsTable();
-                };
-            }
-            paginationContainer.appendChild(prevBtn);
-
-            // Page numbers
-            for (let i = 1; i <= totalPages; i++) {
-                const pageBtn = document.createElement('button');
-                pageBtn.className = `px-3 py-1.5 rounded-md font-medium text-[10px] transition ${currentPage === i ? 'bg-[#C5A059] text-neutral-950' : 'bg-[#18181B] hover:bg-neutral-800/50 text-neutral-400 border border-neutral-800'}`;
-                pageBtn.textContent = i;
-                pageBtn.onclick = () => {
-                    currentPage = i;
-                    renderArtisanProductsTable();
-                };
-                paginationContainer.appendChild(pageBtn);
-            }
-
-            // Next Button
-            const nextBtn = document.createElement('button');
-            nextBtn.className = `px-3 py-1.5 rounded-md border border-neutral-800 font-medium text-[10px] transition ${currentPage === totalPages ? 'opacity-30 cursor-not-allowed text-neutral-500' : 'bg-[#18181B] hover:bg-neutral-800/50 text-neutral-300'}`;
-            nextBtn.textContent = '>';
-            nextBtn.disabled = (currentPage === totalPages);
-            if (currentPage < totalPages) {
-                nextBtn.onclick = () => {
-                    currentPage++;
-                    renderArtisanProductsTable();
-                };
-            }
-            paginationContainer.appendChild(nextBtn);
-        };
-
-        window.prepareB2BTransfer = function(sku) {
-            const form = document.getElementById('form-transferir-tienda');
-            if (!form) return;
-
-            const skuInput = form.querySelector('[name="SKU_Producto_Final"]');
-            if (skuInput) {
-                skuInput.value = sku;
-            }
-
-            form.scrollIntoView({ behavior: 'smooth' });
-
-            // Glowing gold effect
-            form.classList.add('glow-gold-strong');
-            setTimeout(() => {
-                form.classList.remove('glow-gold-strong');
-            }, 1500);
-
-            showToast('info', 'SKU Seleccionado', `SKU ${sku} copiado al formulario de despacho.`);
-        };
-        window.openInspeccionModal = async function(sku) {
-            const modal = document.getElementById('modal-inspeccion');
-            if (!modal) return;
-
-            document.getElementById('modal-sku-title').textContent = sku;
-            document.getElementById('modal-producto-foto').src = 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&q=80&w=600';
-            document.getElementById('modal-producto-descripcion').textContent = 'Cargando...';
-            document.getElementById('modal-lote-id').textContent = 'Cargando...';
-            document.getElementById('modal-fabricante-ruc').textContent = 'Cargando...';
-            document.getElementById('modal-taller-nombre').textContent = 'Cargando...';
-            document.getElementById('modal-token-id').textContent = 'Cargando...';
-            document.getElementById('modal-tx-hash').textContent = 'Cargando...';
-            document.getElementById('modal-tienda-nombre').textContent = 'N/A';
-            document.getElementById('modal-cliente-nombre').textContent = 'N/A';
-            document.getElementById('modal-sunat-hash').textContent = 'N/A';
-
-            modal.classList.remove('hidden');
-
-            try {
-                const token = localStorage.getItem('accessToken');
-                const res = await fetch(`${API_BASE}/productos/inspeccionar/${sku}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.error || 'Error al inspeccionar la prenda.');
-                }
-
-                const data = await res.json();
-
-                if (data.Foto_Producto) {
-                    document.getElementById('modal-producto-foto').src = data.Foto_Producto;
-                }
-                document.getElementById('modal-producto-descripcion').textContent = data.Descripcion;
-                
-                const badge = document.getElementById('modal-status-badge');
-                badge.textContent = data.status;
-                if (data.status === 'ORIGINADO') {
-                    badge.className = "absolute top-3 left-3 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider bg-blue-950/90 border border-blue-800 text-blue-400";
-                } else if (data.status === 'EN_TIENDA') {
-                    badge.className = "absolute top-3 left-3 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider bg-amber-950/90 border border-amber-800 text-amber-500";
-                } else if (data.status === 'VENDIDO') {
-                    badge.className = "absolute top-3 left-3 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider bg-emerald-950/90 border border-emerald-800 text-emerald-400";
-                } else {
-                    badge.className = "absolute top-3 left-3 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider bg-neutral-950/90 border border-neutral-800 text-neutral-400";
-                }
-
-                document.getElementById('modal-lote-id').textContent = data.ID_Lote_Cuero_Utilizado;
-                document.getElementById('modal-fabricante-ruc').textContent = data.RUC_Fabricante;
-                document.getElementById('modal-taller-nombre').textContent = data.taller_artesano;
-                document.getElementById('modal-token-id').textContent = data.nft_token_id || 'N/A';
-                document.getElementById('modal-tx-hash').textContent = data.tx_hash_mint || 'N/A';
-                
-                document.getElementById('modal-tienda-nombre').textContent = data.nombre_tienda || 'N/A';
-                document.getElementById('modal-cliente-nombre').textContent = data.cliente_nombre || 'N/A';
-                document.getElementById('modal-sunat-hash').textContent = data.Hash_Comprobante_Pago || 'N/A';
-
-            } catch (err) {
-                showToast('error', 'Error de Inspección', err.message);
-                closeInspeccionModal();
-            }
-        }
-
-        window.closeInspeccionModal = function() {
-            const modal = document.getElementById('modal-inspeccion');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-
-        window.printQrLabel = function() {
-            const sku = document.getElementById('modal-sku-title').textContent;
-            const lote = document.getElementById('modal-lote-id').textContent;
-            const taller = document.getElementById('modal-taller-nombre').textContent;
-            
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/api/productos/inspeccionar/' + sku)}`;
-            
-            const printContainer = document.getElementById('print-label-container');
-            printContainer.innerHTML = `
-                <div style="font-size: 14px; font-weight: bold; border-bottom: 2px solid #000; width: 100%; padding-bottom: 4px; letter-spacing: 2px; font-family: 'Outfit', sans-serif; text-transform: uppercase; color:#000;">KipuLux</div>
-                <div style="font-size: 10px; margin-top: 5px; font-weight: bold; color: #444;">PRODUCTO AUTÉNTICO</div>
-                <div style="font-size: 11px; font-family: monospace; font-weight: bold; margin-top: 2px; background: #eee; padding: 2px 6px; border-radius: 4px; color:#000;">SKU: ${sku}</div>
-                <div style="margin: 8px 0; display:flex; justify-content:center;">
-                    <img src="${qrUrl}" alt="QR Trazabilidad" style="width: 100px; height: 100px;">
-                </div>
-                <div style="font-size: 8px; color: #555; line-height: 1.2; text-align:left;">
-                    <strong>Lote Cuero:</strong> ${lote}<br>
-                    <strong>Taller:</strong> ${taller}
-                </div>
-                <div style="font-size: 7px; color: #888; border-top: 1px dashed #ccc; width: 100%; padding-top: 4px; margin-top: 5px;">
-                    Escanea para ver certificado de origen oficial
-                </div>
-            `;
-            
-            window.print();
-        }
-
-        window.copyToClipboard = function(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('success', 'Copiado', 'Hash copiado al portapapeles.');
-            }).catch(err => {
-                showToast('error', 'Error', 'No se pudo copiar el texto.');
-            });
+                alertBox.classList.add('hidden');
+            }, 300);
         }
     </script>
 </body>

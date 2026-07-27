@@ -152,3 +152,27 @@ Si deseas limpiar toda la base de datos orientada a grafos y resetearla a su est
    ```cypher
    MATCH (n) DETACH DELETE n
    ```
+
+---
+
+## 🚀 7. Actualización de Fase 3: Marketplace Secundario y Agentes IA (Telegram)
+
+En la última fase del desarrollo (Fase 3), Kipulux ha sido extendido con las siguientes capacidades para el consumidor final B2C:
+
+### 🤖 Integración del Bot de Telegram (IA - Hermes)
+El proyecto cuenta con un endpoint oficial Webhook para recibir instrucciones y comandos directos de los usuarios mediante la aplicación de Telegram (`/api/telegram/webhook`).
+Este webhook puede ser conectado a agentes de Inteligencia Artificial (como el agente local **Hermes**) para que actúen como asistentes comerciales:
+* **API de Marketplace Local:** Hermes y otros agentes pueden leer `http://localhost:3005/api/marketplace` para ofrecer a los clientes en tiempo real el listado de prendas en re-venta.
+* **Token del Bot de Telegram:** `0000000000:your_telegram_bot_token_here_placeholder` (Configurado en Hermes).
+
+### 🛒 Integración de E-Commerce (WooCommerce)
+El servidor ahora importa automáticamente las ventas de la tienda virtual oficial (`alda.com.pe`) mediante llamadas HTTP REST seguras:
+* **Endpoint de Lectura:** `https://alda.com.pe/wp-json/wc/v3/orders`
+* **Consumer Key:** `ck_your_woocommerce_consumer_key_placeholder`
+* **Consumer Secret:** `cs_your_woocommerce_consumer_secret_placeholder`
+
+### 🔑 Generación Automática de Wallets para Clientes (KMS)
+Los compradores en WooCommerce o tiendas físicas ya no necesitan entender qué es Web3 ni crear una billetera (MetaMask). El sistema cuenta con un **KMS de Custodia Local** que auto-genera y encripta las `private_keys` mediante `aes-256-cbc`, vinculando la billetera criptográfica de forma invisible al DNI/RUC del comprador en Neo4j.
+
+### 📜 Smart Contract de Mercado Secundario (Escrow)
+Se desplegó un nuevo Smart Contract `KipuluxMarketplace` que permite a los compradores poner sus prendas en re-venta. Utiliza el patrón _Escrow_ para retener el NFT de forma segura en la Blockchain (zkSyscoin) hasta que otro usuario abone el valor en la criptomoneda nativa (SYS), liquidando la transferencia de forma atómica y descentralizada.
