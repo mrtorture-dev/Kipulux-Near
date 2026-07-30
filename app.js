@@ -1,3 +1,30 @@
+/**
+ * Resolves local upload paths, IPFS URIs, external URLs, and fallbacks.
+ * @param {string} url 
+ * @returns {string} Fully resolved HTTP/HTTPS or local relative image URL
+ */
+function resolveImageUrl(url) {
+    const fallbackUrl = 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?auto=format&fit=crop&q=80&w=600';
+    if (!url || url === 'null' || url === 'undefined' || typeof url !== 'string') {
+        return fallbackUrl;
+    }
+    const cleanUrl = url.trim();
+    if (!cleanUrl) return fallbackUrl;
+
+    if (cleanUrl.startsWith('ipfs://')) {
+        const cid = cleanUrl.replace(/^ipfs:\/\//, '');
+        return `https://gateway.pinata.cloud/ipfs/${cid}`;
+    }
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') || cleanUrl.startsWith('data:image/')) {
+        return cleanUrl;
+    }
+    if (cleanUrl.startsWith('/uploads/') || cleanUrl.startsWith('uploads/')) {
+        return cleanUrl.startsWith('/') ? cleanUrl : '/' + cleanUrl;
+    }
+    return cleanUrl;
+}
+window.resolveImageUrl = resolveImageUrl;
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const dniInput = document.getElementById('dni-input');
@@ -272,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="certificate">
                     <img src="logo_alda.svg" class="logo" alt="Alda" onerror="this.src='https://alda.com.pe/wp-content/uploads/2021/08/logo-alda.png'">
                     <h1 class="title">Certificado de Excelencia</h1>
-                    <div class="subtitle">Validado por la Red Syscoin</div>
+                    <div class="subtitle">Validado por la Red KipuLux</div>
                     
                     <div class="presented-to">Se otorga el presente reconocimiento a:</div>
                     <div class="name">${artisanName}</div>
@@ -283,11 +310,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     <div class="footer">
                         <div class="footer-block">
-                            <strong>Firma Digital (Hash Tx)</strong>
+                            <strong>Firma Digital Certificada</strong>
                             ${hash}
                         </div>
                         <div class="footer-block">
-                            <strong>Smart Contract</strong>
+                            <strong>Registro de Autenticidad</strong>
                             ${contract}
                         </div>
                     </div>
@@ -415,9 +442,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let imageHtml = '';
             if (p['Foto_Producto']) {
-                imageHtml = `<img src="${p['Foto_Producto']}" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
+                imageHtml = `<img src="${resolveImageUrl(p['Foto_Producto'])}" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
             } else if (sku.includes('BC007NN') || (item.toLowerCase().includes('billetera') && item.toLowerCase().includes('negro'))) {
-                imageHtml = `<img src="https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
+                imageHtml = `<img src="${resolveImageUrl('https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png')}" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
+            } else {
+                imageHtml = `<img src="${resolveImageUrl(null)}" alt="${item}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">`;
             }
 
             card.innerHTML = `
@@ -526,17 +555,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="timeline-content">
                             <h3>3. Calidad de Manufactura</h3>
                             <p><strong>Producto SKU:</strong> ${sku}</p>
-                            <p><strong>Token ID en Blockchain:</strong> #${purchase.nft_token_id}</p>
+                            <p><strong>Identificador Digital Único:</strong> #${purchase.nft_token_id}</p>
                             ${t.PDF_Certificado_Previo ? `<p><a href="${t.PDF_Certificado_Previo}" target="_blank" style="color: #c8a064; text-decoration: underline; font-weight: 600;">Ver Certificado Oficial (PDF)</a></p>` : ''}
                         </div>
                     </div>
                 </div>
                 <div class="cert-footer">
                     <div class="hash-box">
-                        <span class="hash-label">Smart Contract (zkSYS)</span>
+                        <span class="hash-label">Registro de Autenticidad</span>
                         <span class="hash-value">${t.contract_address}</span>
                     </div>
-                    <span class="badge success">Certificación Blockchain Válida ✅</span>
+                    <span class="badge success">Certificación Digital Válida</span>
                 </div>
             `;
         } else {
@@ -551,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         La compra de este producto (SKU: <strong>${sku}</strong>) fue procesada en WooCommerce. El taller artesanal está certificando el origen del cuero y la costura.
                     </p>
                     <div style="font-size: 0.75rem; color: var(--color-text-muted); border-top: 1px solid var(--color-border); padding-top: 1rem; font-family: monospace;">
-                        Estado: Pendiente de Registro Blockchain (zkSYS)
+                        Estado: Pendiente de Registro Digital Verificado
                     </div>
                 </div>
             `;

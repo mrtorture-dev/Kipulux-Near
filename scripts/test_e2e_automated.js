@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3005/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 async function runTests() {
   console.log("🚀 INICIANDO TEST DE INTEGRACIÓN PROGRAMÁTICO E2E REINGENIERÍA - KIPULUX");
@@ -42,6 +42,27 @@ async function runTests() {
     console.log("[PASS] Paso 2: Autenticación de Artesano (JWT Generado con Éxito).");
   } catch (error) {
     console.error(`[FAIL] Paso 2: Autenticación de Artesano fallida:`, error.message);
+    process.exit(1);
+  }
+
+  // Paso 2C: Obtención de Perfil de Artesano ("Mi Taller")
+  try {
+    const res = await fetch(`${API_BASE_URL}/artesanos/perfil`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${artisanToken}`
+      }
+    });
+    if (res.status !== 200) {
+      throw new Error(`Código de estado incorrecto al consultar perfil de artesano: ${res.status}`);
+    }
+    const perfil = await res.json();
+    if (!perfil.nombre || !perfil.ruc || perfil.total_prendas_confeccionadas === undefined) {
+      throw new Error("Respuesta de perfil de artesano incompleta");
+    }
+    console.log(`[PASS] Paso 2C: Perfil de Artesano ("Mi Taller") obtenido exitosamente (${perfil.nombre}, RUC: ${perfil.ruc}, Prendas: ${perfil.total_prendas_confeccionadas}).`);
+  } catch (error) {
+    console.error(`[FAIL] Paso 2C: Obtención de Perfil de Artesano fallida:`, error.message);
     process.exit(1);
   }
 
@@ -175,7 +196,7 @@ async function runTests() {
       throw new Error(`Código de estado incorrecto al transferir B2B: ${res.status}`);
     }
     transferData = await res.json();
-    console.log(`[PASS] Paso 5: Custodia transferida B2B exitosamente en Blockchain y Neo4j (estado EN_TIENDA). Tx: ${transferData.txHash}`);
+    console.log(`[PASS] Paso 5: Custodia transferida B2B exitosamente en Blockchain y Neo4j (estado CUSTODIA). Tx: ${transferData.txHash}`);
   } catch (error) {
     console.error(`[FAIL] Paso 5: Transferencia B2B fallida:`, error.message);
     process.exit(1);
@@ -183,7 +204,25 @@ async function runTests() {
 
   // Paso 5B: Validación de Regla de Custodia (Tienda no puede vender lo que no posee)
   try {
-    // Intentar vender un producto que pertenece al artesano (KIPU-CUERO-002 está en estado ORIGINADO, no transferido)
+    // Crear producto sin transferir custodia a la tienda
+    const createRes = await fetch(`${API_BASE_URL}/productos/crear`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${artisanToken}`
+      },
+      body: JSON.stringify({
+        SKU_Producto_Final: "KIPU-CUERO-UNTRANSFERRED",
+        ID_Lote_Cuero_Utilizado: "LOTE-NIETO-003",
+        Foto_Producto: "https://alda.com.pe/billetera-untransferred.png",
+        PDF_Certificado_Previo: "QmYwAPJ88CZ21GCg69B3Y9ff62XSp23tKCTsF4C4rJ8B1D"
+      })
+    });
+    if (createRes.status !== 200) {
+      throw new Error(`Código de estado incorrecto al crear producto sin transferir: ${createRes.status}`);
+    }
+
+    // Intentar vender el producto que pertenece al artesano (en estado ORIGINADO, no transferido)
     const res = await fetch(`${API_BASE_URL}/productos/vender`, {
       method: 'POST',
       headers: {
@@ -191,7 +230,7 @@ async function runTests() {
         'Authorization': `Bearer ${tiendaToken}`
       },
       body: JSON.stringify({
-        SKU_Producto_Final: "KIPU-CUERO-002",
+        SKU_Producto_Final: "KIPU-CUERO-UNTRANSFERRED",
         DNI_O_RUC_Comprador: "00792282",
         Nro_Comprobante_Pago: "B001-00029384",
         wallet_address_comprador: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
