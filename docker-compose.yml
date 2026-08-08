@@ -27,7 +27,7 @@ services:
     build: .
     container_name: kipu-backend
     ports:
-      - "3005:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     env_file:
       - .env
     environment:
@@ -46,7 +46,8 @@ services:
       - SIMPLEFACT_TOKEN_BEARER=${SIMPLEFACT_TOKEN_BEARER:-mock}
       - SIMPLEFACT_RUC_EMISOR=${SIMPLEFACT_RUC_EMISOR:-20600123456}
     depends_on:
-      - neo4j
+      neo4j:
+        condition: service_healthy
     volumes:
       - ./docker/uploads:/app/public/uploads
     extra_hosts:
