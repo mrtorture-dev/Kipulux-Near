@@ -2179,16 +2179,117 @@ app.get('/api/admin/compras-totales', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
+
+// ==========================================
+// E) RUTAS DE MARKETPLACE (ESCROW) Y HERMES
+// ==========================================
+
+app.get('/api/hermes/misprendas/:dni', async (req, res) => {
+    const session = driver.session();
+    try {
+        const prodRes = await session.run(`
+            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})-[:PROPIEDAD_DE]->(p:Producto)
+            WHERE p.status = 'VENDIDO'
+            RETURN p.SKU_Producto_Final AS sku, p.nombre AS nombre
+        `, { dni: req.params.dni });
+        const prendas = prodRes.records.map(r => ({ sku: r.get('sku'), nombre: r.get('nombre') }));
+        res.json(prendas);
+    } catch(e) { res.status(500).json({ error: e.message }); } finally { await session.close(); }
+});
+
+app.post('/api/hermes/listar', async (req, res) => {
+    const { dni, sku, precioSys } = req.body;
+    const session = driver.session();
+    try {
+        const userRes = await session.run(`MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni}) RETURN c.kms_encrypted_key AS kmsKey`, { dni });
+        if(userRes.records.length === 0) return res.status(400).json({ error: 'Usuario no encontrado' });
+        
+        const kmsKey = userRes.records[0].get('kmsKey');
+        const prodRes = await session.run(`
+            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})-[:PROPIEDAD_DE]->(p:Producto {SKU_Producto_Final: $sku})
+            MATCH (t:Tienda)-[:VENDIÓ]->(p)
+            RETURN p.nft_token_id AS tokenId, t.wallet_address AS storeWallet
+        `, { dni, sku });
+        if(prodRes.records.length === 0) return res.status(400).json({ error: 'Producto no pertenece al usuario' });
+
+        const tokenId = prodRes.records[0].get('tokenId');
+        const storeWallet = prodRes.records[0].get('storeWallet') || '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC';
+        
+        const crypto = require('crypto');
+        const jwtSecret = process.env.JWT_SECRET || 'Kipulux_Clave_Secreta_Segura_2026';
+        const kmsSalt = crypto.scryptSync(jwtSecret, 'salt_kms_2026', 32);
+        const textParts = kmsKey.split(':');
+        const iv = Buffer.from(textParts.shift(), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', kmsSalt, iv);
+        let privateKey = decipher.update(Buffer.from(textParts.join(':'), 'hex'));
+        privateKey = Buffer.concat([privateKey, decipher.final()]).toString();
+
+        const { listTokenOnMarketplace } = require('./services/blockchain');
+        await listTokenOnMarketplace(tokenId, Number(precioSys), storeWallet, privateKey);
+
+        await session.run(`
+            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})-[:PROPIEDAD_DE]->(p:Producto {SKU_Producto_Final: $sku})
+            SET p.status = 'EN_VENTA', p.precio_mercado = $precio
+            MERGE (c)-[l:LISTADO_EN_MARKETPLACE]->(p)
+            SET l.is_active = true, l.fecha = datetime()
+        `, { dni, sku, precio: Number(precioSys) });
+
+        res.json({ message: 'Listado con exito' });
+    } catch(e) { res.status(500).json({ error: e.message }); } finally { await session.close(); }
+});
+
+app.post('/api/hermes/comprar', async (req, res) => {
+    const { dni, sku } = req.body;
+    const session = driver.session();
+    try {
+        const userRes = await session.run(`MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni}) RETURN c.kms_encrypted_key AS kmsKey`, { dni });
+        if(userRes.records.length === 0) return res.status(400).json({ error: 'Usuario no encontrado' });
+        
+        const kmsKey = userRes.records[0].get('kmsKey');
+        const prodRes = await session.run(`
+            MATCH (p:Producto {SKU_Producto_Final: $sku, status: 'EN_VENTA'})
+            MATCH (seller:Cliente)-[l:LISTADO_EN_MARKETPLACE {is_active: true}]->(p)
+            RETURN p.nft_token_id AS tokenId, p.precio_mercado AS precioSys, seller.DNI_O_RUC_Comprador AS sellerDni
+        `, { sku });
+        if(prodRes.records.length === 0) return res.status(400).json({ error: 'Producto no disponible' });
+
+        const tokenId = prodRes.records[0].get('tokenId');
+        const precioSys = prodRes.records[0].get('precioSys');
+        const sellerDni = prodRes.records[0].get('sellerDni');
+        
+        const crypto = require('crypto');
+        const jwtSecret = process.env.JWT_SECRET || 'Kipulux_Clave_Secreta_Segura_2026';
+        const kmsSalt = crypto.scryptSync(jwtSecret, 'salt_kms_2026', 32);
+        const textParts = kmsKey.split(':');
+        const iv = Buffer.from(textParts.shift(), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', kmsSalt, iv);
+        let privateKey = decipher.update(Buffer.from(textParts.join(':'), 'hex'));
+        privateKey = Buffer.concat([privateKey, decipher.final()]).toString();
+
+        const { buyTokenFromMarketplace } = require('./services/blockchain');
+        await buyTokenFromMarketplace(tokenId, typeof precioSys === 'object' ? precioSys.toNumber() : precioSys, privateKey);
+
+        await session.run(`
+            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            MATCH (seller:Cliente {DNI_O_RUC_Comprador: $sellerDni})-[l:LISTADO_EN_MARKETPLACE]->(p)
+            MATCH (seller)-[prop:PROPIEDAD_DE]->(p)
+            MATCH (buyer:Cliente {DNI_O_RUC_Comprador: $dni})
+            SET p.status = 'VENDIDO', l.is_active = false
+            DELETE prop
+            MERGE (buyer)-[:PROPIEDAD_DE {fecha: datetime()}]->(p)
+            MERGE (seller)-[:VENDIÓ_A_CLIENTE {fecha: datetime(), precio: $precio}]->(buyer)
+        `, { sku, sellerDni, dni, precio: precioSys });
+
+        res.json({ message: 'Compra exitosa' });
+    } catch(e) { res.status(500).json({ error: e.message }); } finally { await session.close(); }
+});
+
+
 // F) INICIALIZACIÓN DEL LISTENER DE EXPRESS
 // ==========================================
 const PORT = process.env.PORT || 3000;
-<<<<<<< Updated upstream
-const serverInstance = app.listen(PORT, () => {
-    console.log(`[Server] Backend Corporativo Kipulux corriendo en http://localhost:${PORT}`);
-=======
 const serverInstance = app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] Backend Corporativo Kipulux corriendo en http://0.0.0.0:${PORT}`);
->>>>>>> Stashed changes
 });
 
 // Manejo elegante del cierre de conexiones
