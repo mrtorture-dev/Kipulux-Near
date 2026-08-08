@@ -44,7 +44,7 @@ CREATE (loteHijo:LoteCuero {
     ruc_curtiembre: "20555444333",
     PDF_Certificado_Previo: "QmXoypizjW3WknFixtdKL9B2D7QsNTkwVKzEA48g8Ss65D"
 })
-CREATE (loteHijo)-[:SUBDIVIDIDO_DE]->(lotePadre)
+CREATE (loteHijo)-[:SUBDIVIDED_FROM]->(lotePadre)
 
 // D. Crear Lote de Cuero Nieto (Retazo final asignado para la cartera) y relacionarlo
 CREATE (loteNieto:LoteCuero {
@@ -52,7 +52,7 @@ CREATE (loteNieto:LoteCuero {
     ruc_curtiembre: "20555444333",
     PDF_Certificado_Previo: "QmYwAPJ88CZ21GCg69B3Y9ff62XSp23tKCTsF4C4rJ8B1D"
 })
-CREATE (loteNieto)-[:SUBDIVIDIDO_DE]->(loteHijo)
+CREATE (loteNieto)-[:SUBDIVIDED_FROM]->(loteHijo)
 
 // E. Crear Producto (Cartera/Billetera física)
 CREATE (prod:Producto {
@@ -64,8 +64,8 @@ CREATE (prod:Producto {
 })
 
 // F. Crear Relaciones del Producto (Confección y Herencia de Cuero)
-CREATE (art)-[:CONFECCIONÓ]->(prod)
-CREATE (prod)-[:HEREDA_DE]->(loteNieto)
+CREATE (prod)-[:MANUFACTURED_BY]->(art)
+CREATE (prod)-[:SUBDIVIDED_FROM]->(loteNieto)
 
 // G. Crear Cliente Final
 CREATE (cli:Cliente {
@@ -75,9 +75,9 @@ CREATE (cli:Cliente {
 })
 
 // H. Registrar la Venta
-CREATE (prod)-[:VENDIDO_A {
+CREATE (prod)-[:OWNED_BY {
     fecha: datetime("2026-06-24T17:00:00-05:00"),
-    Hash_Comprobante_Pago: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    Hash_Comprobante_Pago: "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     Nro_Comprobante_Pago: "B001-00029384"
 }]->(cli);
 
@@ -88,14 +88,14 @@ CREATE (prod)-[:VENDIDO_A {
 // Dado el SKU del producto, recorre el grafo hacia atrás para obtener:
 // 1. El artesano fabricante.
 // 2. El lote de cuero inmediato.
-// 3. Toda la cadena jerárquica de subdivisión de lotes (recursividad SUBDIVIDIDO_DE*0..).
+// 3. Toda la cadena jerárquica de subdivisión de lotes (recursividad SUBDIVIDED_FROM*0..).
 // Retorna un único registro estructurado con la información consolidada.
 
 MATCH (p:Producto {SKU_Producto_Final: "BC007NN"})
-MATCH (art:Artesano)-[:CONFECCIONÓ]->(p)
-MATCH (p)-[:HEREDA_DE]->(loteInmediato:LoteCuero)
+MATCH (p)-[:MANUFACTURED_BY]->(art:Artesano)
+MATCH (p)-[:SUBDIVIDED_FROM]->(loteInmediato:LoteCuero)
 // Recorrido de longitud variable hacia atrás (0 a N saltos) para capturar toda la genealogía
-MATCH path = (loteInmediato)-[:SUBDIVIDIDO_DE*0..]->(loteAncestro:LoteCuero)
+MATCH path = (loteInmediato)-[:SUBDIVIDED_FROM*0..]->(loteAncestro:LoteCuero)
 // Nos quedamos con el camino más largo (el que llega al lote raíz original)
 WITH p, art, loteInmediato, path
 ORDER BY length(path) DESC

@@ -15,3 +15,7 @@ cache/
 
 # Uploaded test files
 public/uploads/
+docker/uploads/
+docker/neo4j/
+
+
