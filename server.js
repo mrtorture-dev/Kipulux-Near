@@ -8,14 +8,8 @@ const multer = require('multer');
 const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
-<<<<<<< Updated upstream
-const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain } = require('./services/blockchain');
-const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema } = require('./middlewares/validation');
-const { subirAIPFS } = require('./services/ipfs');
-require('dotenv').config();
-
-const app = express();
-=======
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const { createClient } = require('@supabase/supabase-js');
@@ -117,8 +111,6 @@ const strictLimiter = rateLimit({
 app.use('/api/productos/crear', strictLimiter);
 app.use('/api/productos/vender', strictLimiter);
 app.use('/api/debug/seed', strictLimiter);
-
->>>>>>> Stashed changes
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
@@ -506,9 +498,6 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
 
         let tokenId, status;
         if (findResult.records.length === 0) {
-<<<<<<< Updated upstream
-            // Si el producto no existe o la tienda no lo tiene en custodia, lo auto-generamos al vuelo!
-=======
             // Verificar si el producto ya existe en la base de datos (con otro estado o dueño)
             const existResult = await session.run(
                 `MATCH (p:Producto {SKU_Producto_Final: $sku}) RETURN p.status AS status`,
@@ -519,7 +508,6 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             }
 
             console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado en custodia. Auto-creando en Neo4j/Blockchain...`);
->>>>>>> Stashed changes
             try {
                 console.log(`[API Venta] SKU ${SKU_Producto_Final} no encontrado. Auto-creando en Neo4j/Blockchain...`);
                 const autoProd = await autoGenerarProductoYEntregarATienda(SKU_Producto_Final, tiendaRuc, session);
@@ -932,11 +920,7 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
     { name: 'Foto_Producto', maxCount: 1 },
     { name: 'PDF_Certificado_Previo', maxCount: 1 }
 ]), validateBody(crearProductoSchema), async (req, res) => {
-<<<<<<< Updated upstream
-    const { SKU_Producto_Final, ID_Lote_Cuero_Utilizado } = req.body;
-=======
     const { SKU_Producto_Final, ID_Lote_Cuero_Utilizado, Descripcion, Coleccion, Color } = req.body;
->>>>>>> Stashed changes
     
     // El RUC_Fabricante se obtiene del JWT inyectado en req.user
     const rucFabricante = req.user.DNI_O_RUC;
@@ -1057,14 +1041,10 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
                     tx_hash_mint: $txHash,
                     Foto_Producto: $foto_url,
                     PDF_Certificado_Previo: $pdf_url,
-<<<<<<< Updated upstream
-                    fecha_creacion: datetime()
-=======
                     fecha_creacion: datetime(),
                     Descripcion: $descripcion,
                     Coleccion: $coleccion,
                     Color: $color
->>>>>>> Stashed changes
                 })
                 CREATE (p)-[:PROVIENE_DE]->(lote)
                 CREATE (p)-[:HEREDA_DE]->(lote)
@@ -1077,14 +1057,10 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
                 tokenId: tokenId,
                 txHash: txHash,
                 foto_url: fotoUrl,
-<<<<<<< Updated upstream
-                pdf_url: pdfUrl
-=======
                 pdf_url: pdfUrl,
                 descripcion: Descripcion || '',
                 coleccion: Coleccion || 'N/A',
                 color: Color || 'N/A'
->>>>>>> Stashed changes
             });
 
             return res.status(200).json({
@@ -1402,14 +1378,10 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
                 SKU_Producto_Final: record.get('SKU_Producto_Final'),
                 status: record.get('status'),
                 nft_token_id: record.get('nft_token_id'),
-<<<<<<< Updated upstream
-                fecha_creacion: dateObj ? dateObj.toString() : new Date().toISOString()
-=======
                 fecha_creacion: formatNeo4jTimestamp(dateObj),
                 Foto_Producto: record.get('Foto_Producto') || '',
                 Descripcion: record.get('Descripcion') || 'Sin descripción artesanal.',
                 ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A'
->>>>>>> Stashed changes
             };
         });
 
@@ -1422,8 +1394,6 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
     }
 });
 
-<<<<<<< Updated upstream
-=======
 app.get('/api/productos/inspeccionar/:sku', authenticateToken, async (req, res) => {
     const { sku } = req.params;
     const session = driver.session();
@@ -1643,8 +1613,6 @@ app.get('/api/config/relayer-status', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Error al obtener estado del Relayer KMS' });
     }
 });
-
->>>>>>> Stashed changes
 // ==========================================
 // E4) ENDPOINTS DE ONBOARDING Y HISTORIAL (MÓDULOS 1 Y 2)
 // ==========================================
@@ -2282,6 +2250,19 @@ app.post('/api/hermes/comprar', async (req, res) => {
 
         res.json({ message: 'Compra exitosa' });
     } catch(e) { res.status(500).json({ error: e.message }); } finally { await session.close(); }
+});
+
+// G) WEBHOOK PARA EL BOT DE TELEGRAM OFICIAL
+app.post('/api/telegram-webhook', async (req, res) => {
+    try {
+        const { handleTelegramWebhook } = require('./services/telegramBot');
+        await handleTelegramWebhook(req, res);
+    } catch (e) {
+        console.error('[Telegram Webhook Error]:', e.message);
+        if (!res.headersSent) {
+            res.status(500).json({ error: e.message });
+        }
+    }
 });
 
 

@@ -34,9 +34,6 @@ const ventaSchema = z.object({
         .min(1, { message: 'El xml_boleta es obligatorio y no puede estar vacío.' })
         .refine(val => val.trim().startsWith('<') && val.trim().includes('>'), {
             message: 'El xml_boleta debe tener una estructura XML obligatoria válida (iniciar con "<" y contener ">").'
-<<<<<<< Updated upstream
-        }),
-=======
         })
         .optional(),
 
@@ -49,7 +46,6 @@ const ventaSchema = z.object({
         .regex(/^0x[0-9a-fA-F]{64}$/, { message: 'El Hash_Comprobante_Pago debe ser un formato de hash SHA-256 EVM válido que empiece con 0x.' })
         .optional(),
 
->>>>>>> Stashed changes
     id_tienda: z.string().optional()
 }).strict({ message: 'No se permiten campos adicionales en el payload de registro de venta.' });
 
@@ -86,14 +82,10 @@ const crearProductoSchema = z.object({
     ID_Lote_Cuero_Utilizado: z.string()
         .min(1, { message: 'El ID_Lote_Cuero_Utilizado es obligatorio.' }),
     Foto_Producto: z.string().optional(),
-<<<<<<< Updated upstream
-    PDF_Certificado_Previo: z.string().optional()
-=======
     PDF_Certificado_Previo: z.string().optional(),
     Descripcion: z.string().optional(),
     Coleccion: z.string().optional(),
     Color: z.string().optional()
->>>>>>> Stashed changes
 }).strict({ message: 'No se permiten campos adicionales en el payload de creación.' });
 
 const registrarArtesanoSchema = z.object({

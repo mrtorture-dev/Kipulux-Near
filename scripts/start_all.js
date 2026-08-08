@@ -14,8 +14,10 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || "";
 process.env.PORT = process.env.PORT || "3005";
 process.env.CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "";
 
-// Write .env file
-const envContent = `RPC_URL=${process.env.RPC_URL}
+// Write .env file if it doesn't exist
+const envPath = path.join(__dirname, '..', '.env');
+if (!fs.existsSync(envPath)) {
+    const envContent = `RPC_URL=${process.env.RPC_URL}
 CHAIN_ID=${process.env.CHAIN_ID}
 VAULT_PRIVATE_KEY=${process.env.VAULT_PRIVATE_KEY}
 NEO4J_URI=${process.env.NEO4J_URI}
@@ -25,8 +27,11 @@ JWT_SECRET=${process.env.JWT_SECRET}
 PORT=${process.env.PORT}
 CONTRACT_ADDRESS=${process.env.CONTRACT_ADDRESS}
 `;
-fs.writeFileSync(path.join(__dirname, '..', '.env'), envContent, 'utf8');
-console.log('[StartAll] Wrote .env file successfully.');
+    fs.writeFileSync(envPath, envContent, 'utf8');
+    console.log('[StartAll] Wrote default .env file successfully.');
+} else {
+    console.log('[StartAll] Found existing .env file. Keeping current variables.');
+}
 
 // 2. Start Hardhat Node
 console.log('[StartAll] Starting Hardhat node...');

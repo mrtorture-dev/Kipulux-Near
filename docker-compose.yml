@@ -28,6 +28,8 @@ services:
     container_name: kipu-backend
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - PORT=${PORT:-3000}
       - NODE_ENV=${NODE_ENV:-production}
@@ -47,8 +49,6 @@ services:
       - neo4j
     volumes:
       - ./docker/uploads:/app/public/uploads
-      - ./index.html:/app/index.html
-      - ./server.js:/app/server.js
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

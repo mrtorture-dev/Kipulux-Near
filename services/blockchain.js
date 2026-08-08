@@ -10,11 +10,7 @@ const rawRpcUrl = process.env.RPC_URL || 'http://127.0.0.1:8545';
 const rpcUrl = rawRpcUrl.replace('host.docker.internal', '127.0.0.1');
 
 const zkSyscoinTanenbaum = defineChain({
-<<<<<<< Updated upstream
-  id: Number(process.env.CHAIN_ID) || 57057,
-=======
   id: Number(process.env.CHAIN_ID || 31337),
->>>>>>> Stashed changes
   name: 'zkSyscoin Tanenbaum Testnet',
   network: 'zksyscoin-tanenbaum',
   nativeCurrency: {
@@ -24,17 +20,10 @@ const zkSyscoinTanenbaum = defineChain({
   },
   rpcUrls: {
     default: {
-<<<<<<< Updated upstream
-      http: [process.env.RPC_URL || process.env.BLOCKCHAIN_RPC || 'https://rpc-zk.tanenbaum.io/'],
-    },
-    public: {
-      http: [process.env.RPC_URL || process.env.BLOCKCHAIN_RPC || 'https://rpc-zk.tanenbaum.io/'],
-=======
       http: [rpcUrl],
     },
     public: {
       http: [rpcUrl],
->>>>>>> Stashed changes
     },
   },
 });
@@ -203,11 +192,6 @@ async function ejecutarMintOnChain(toAddress, metadataURI) {
 async function ejecutarVentaOnChain(tokenId, compradorAddress, xmlBoletaString) {
   console.log(`[Blockchain] Registrando venta para TokenID ${tokenId}...`);
   try {
-<<<<<<< Updated upstream
-    // 1. Calcular hash SHA-256 nativo de la boleta XML
-    const hashHex = crypto.createHash('sha256').update(xmlBoletaString).digest('hex');
-    const bytes32Hash = `0x${hashHex}`;
-=======
     return await executeSequentialTx(async () => {
       // 1. Calcular hash SHA-256 nativo de la boleta XML (o usar bytes32 si ya está calculated)
       let bytes32Hash;
@@ -217,7 +201,6 @@ async function ejecutarVentaOnChain(tokenId, compradorAddress, xmlBoletaString) 
         const hashHex = crypto.createHash('sha256').update(xmlBoletaString || '', 'utf8').digest('hex');
         bytes32Hash = `0x${hashHex}`;
       }
->>>>>>> Stashed changes
 
       console.log(`[Blockchain] Hash SUNAT calculated (bytes32): ${bytes32Hash}`);
 

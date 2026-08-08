@@ -1,5 +1,4 @@
 node_modules/
-package-lock.json
 *.log
 .env
 .DS_Store
@@ -17,5 +16,6 @@ cache/
 public/uploads/
 docker/uploads/
 docker/neo4j/
+scratch/
 
 
