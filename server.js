@@ -87,8 +87,8 @@ console.log('[CORS] Configuración de Orígenes Permitidos:', allowedOrigins);
 app.use(cors({
   origin: function (origin, callback) {
     const sanitizedOrigin = origin ? origin.trim().replace(/\/$/, '') : '';
-    // Permitir si no hay origen (ej. curl, Postman), si está en allowedOrigins, o si no estamos en producción
-    if (!origin || allowedOrigins.includes(sanitizedOrigin) || process.env.NODE_ENV !== 'production') {
+    // Permitir si no hay origen (ej. curl, Postman), si contiene wildcard '*', si está en allowedOrigins, o si no estamos en producción
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(sanitizedOrigin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('Acceso denegado por políticas de seguridad CORS'));
