@@ -514,27 +514,10 @@
                             <label for="reg-password" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Contraseña (Mín. 6 caracteres)</label>
                             <input type="password" id="reg-password" required minlength="6" class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="••••••••">
                         </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1.5">
-                                <label for="reg-wallet" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider">Dirección Wallet EVM</label>
-                                <button type="button" onclick="regenerateRegWallet()" class="text-[9px] text-gold-500 hover:text-gold-400 uppercase tracking-wider font-semibold focus:outline-none transition-colors">Generar Nueva</button>
-                            </div>
-                            <input type="text" id="reg-wallet" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3.5 py-2.5 text-gold-400 focus:outline-none focus:border-gold-500 transition text-[11px] font-mono" placeholder="0x...">
-                            <span class="block text-[9px] text-neutral-500 mt-1">Generada de forma segura para resguardo criptográfico.</span>
-                        </div>
                         <button type="submit" id="btn-register-submit" class="w-full bg-gradient-to-r from-gold-600 to-gold-500 text-neutral-950 hover:from-gold-500 hover:to-gold-400 font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-gold-500/20 active:scale-95 transition text-sm tracking-wide uppercase flex items-center justify-center gap-2 mt-2">
                             <span>Registrar Cuenta</span>
                         </button>
                     </form>
-                </div>
-
-                <!-- Dev Utility: Database Seeding (Solo para Demostración) -->
-                <div class="mt-8 pt-6 border-t border-neutral-900 text-center">
-                    <p class="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold mb-3">Entorno de Demostración</p>
-                    <button type="button" id="btn-seed" onclick="seedDatabase()" class="inline-flex items-center gap-1.5 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-4 rounded-lg text-xs transition uppercase tracking-wider active:scale-95">
-                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
-                        <span>Sembrar Base de Datos</span>
-                    </button>
                 </div>
             </div>
         </section>
@@ -645,7 +628,7 @@
                         Cancelar
                     </button>
                     <button type="button" id="btn-confirm-proceder" onclick="executeCrearProducto()" class="px-5 py-2.5 rounded-lg bg-[#1B3A5F] text-[#F2EFE9] text-xs font-bold hover:bg-[#12294A] transition flex items-center justify-center gap-1.5 shadow-md min-h-[44px]">
-                        Confirmar y Acuñar NFT
+                        Confirmar y Registrar Pasaporte
                     </button>
                 </div>
             </div>
@@ -696,7 +679,7 @@
                         Cancelar
                     </button>
                     <button type="button" id="btn-confirm-proceder" onclick="executeCrearProducto()" class="px-5 py-2.5 rounded-lg bg-[#1B3A5F] text-[#F2EFE9] text-xs font-bold hover:bg-[#12294A] transition flex items-center justify-center gap-1.5 shadow-md min-h-[44px]">
-                        Confirmar y Acuñar NFT
+                        Confirmar y Registrar Pasaporte
                     </button>
                 </div>
             </div>
@@ -1062,7 +1045,7 @@
                                 <div class="text-xs text-neutral-300 space-y-1.5 font-mono">
                                     <p><strong class="text-neutral-400 font-sans">Usuario:</strong> <span id="cred-user" class="text-emerald-300 font-bold bg-neutral-950/50 px-1.5 py-0.5 rounded border border-neutral-900"></span></p>
                                     <p><strong class="text-neutral-400 font-sans">Contraseña:</strong> <span id="cred-pass" class="text-emerald-300 font-bold bg-neutral-950/50 px-1.5 py-0.5 rounded border border-neutral-900"></span></p>
-                                    <p><strong class="text-neutral-400 font-sans">Dirección Wallet EVM:</strong> <span id="cred-wallet" class="text-emerald-400 text-[10px] break-all block mt-0.5 bg-neutral-950/50 p-1.5 rounded border border-neutral-900"></span></p>
+                                    <p><strong class="text-neutral-400 font-sans">Firma Digital del Taller:</strong> <span id="cred-wallet" class="text-emerald-400 text-[10px] break-all block mt-0.5 bg-neutral-950/50 p-1.5 rounded border border-neutral-900"></span></p>
                                 </div>
                             </div>
                         </div>
@@ -1071,7 +1054,7 @@
                         <div class="glass-panel rounded-2xl p-6 space-y-6">
                             <div class="border-b border-neutral-900 pb-4">
                                 <h4 class="title-serif text-lg font-semibold text-neutral-100">2. Venta Final B2C (Fase C)</h4>
-                                <p class="text-xs text-neutral-500 mt-1">Registra la factura de SUNAT y vende el NFT al comprador final.</p>
+                                <p class="text-xs text-neutral-500 mt-1">Registra el comprobante de pago de SUNAT y transfiere el certificado de propiedad al comprador final.</p>
                             </div>
                             <form id="form-vender-producto" onsubmit="handleVenderProducto(event)" class="space-y-4">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1084,20 +1067,11 @@
                                         <input type="text" name="DNI_O_RUC_Comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="8 u 11 dígitos">
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 gap-4">
                                     <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Número de Boleta/Factura</label>
+                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Número de Boleta/Factura de Pago</label>
                                         <input type="text" name="Nro_Comprobante_Pago" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: B001-00029384" pattern="^[BF][A-Z0-9]{3}-\d+$">
                                     </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Wallet EVM Comprador</label>
-                                        <input type="text" name="wallet_address_comprador" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="0x..." pattern="^0x[0-9a-fA-F]{40}$">
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">Hash del Comprobante SUNAT (Opcional, 0x + 64 hex)</label>
-                                    <input type="text" name="Hash_Comprobante_Pago" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" pattern="^0x[0-9a-fA-F]{64}$">
                                 </div>
                                 
                                 <div>
@@ -1114,7 +1088,7 @@
                                 </div>
 
                                 <button type="submit" id="btn-sale-submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5">
-                                    Registrar Venta & Transferir NFT
+                                    Certificar Venta y Registrar Propiedad
                                 </button>
                             </form>
                     </div>
@@ -1867,19 +1841,7 @@
                 tabLogin.className = "flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-transparent text-neutral-500 hover:text-neutral-300 focus:outline-none transition-colors duration-200";
                 loginContainer.classList.add('hidden');
                 registerContainer.classList.remove('hidden');
-                
-                // Generar wallet automática si el campo está vacío
-                const walletInput = document.getElementById('reg-wallet');
-                if (!walletInput.value) {
-                    regenerateRegWallet();
-                }
             }
-        }
-
-        // Generar una dirección wallet EVM aleatoria (Mock-up seguro de resguardo)
-        function regenerateRegWallet() {
-            const randomHex = '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
-            document.getElementById('reg-wallet').value = randomHex;
         }
 
         // Manejar el registro del cliente
@@ -1890,7 +1852,9 @@
             const username = document.getElementById('reg-username').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const password = document.getElementById('reg-password').value.trim();
-            const wallet = document.getElementById('reg-wallet').value.trim();
+            
+            // Generación de Billetera Custodial de forma 100% silenciosa en segundo plano
+            const silentWallet = '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
 
             const btn = document.getElementById('btn-register-submit');
             const originalText = btn.innerHTML;
@@ -1898,13 +1862,13 @@
             btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-neutral-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Registrando...`;
 
             try {
-                showAlert('info', 'Registrando Cuenta', 'Vinculando DNI con el sistema de trazabilidad y criptografía...');
+                showAlert('info', 'Creando Cuenta', 'Asociando datos y preparando su pasaporte digital de Kipulux...');
                 await request(`${API_BASE}/clientes/registrar`, {
                     method: 'POST',
                     body: JSON.stringify({
                         DNI_O_RUC_Comprador: dni,
                         nombre_completo: nombre,
-                        wallet_address: wallet,
+                        wallet_address: silentWallet,
                         username: username,
                         email: email,
                         password: password
@@ -2358,7 +2322,7 @@
 
             modalBtn.disabled = true;
             modalBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            modalBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><svg class="animate-spin h-3.5 w-3.5 text-[#F2EFE9]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Acuñando...</span>`;
+            modalBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><svg class="animate-spin h-3.5 w-3.5 text-[#F2EFE9]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Registrando...</span>`;
 
             cancelBtn.disabled = true;
             cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -2535,12 +2499,10 @@
             const token = localStorage.getItem('accessToken');
             const form = document.getElementById('form-vender-producto');
             
-            const sku = form.querySelector('[name="SKU_Producto_Final"]').value;
-            const compradorDni = form.querySelector('[name="DNI_O_RUC_Comprador"]').value;
-            const comprobante = form.querySelector('[name="Nro_Comprobante_Pago"]').value;
-            const wallet = form.querySelector('[name="wallet_address_comprador"]').value;
-            const xml = document.getElementById('xml-textarea').value;
-            const hashComprobante = form.querySelector('[name="Hash_Comprobante_Pago"]').value;
+            const sku = form.querySelector('[name="SKU_Producto_Final"]').value.trim();
+            const compradorDni = form.querySelector('[name="DNI_O_RUC_Comprador"]').value.trim();
+            const comprobante = form.querySelector('[name="Nro_Comprobante_Pago"]').value.trim();
+            const xml = document.getElementById('xml-textarea').value.trim();
 
             const btn = document.getElementById('btn-sale-submit');
             const originalText = btn.innerHTML;
@@ -2555,13 +2517,11 @@
                         SKU_Producto_Final: sku,
                         DNI_O_RUC_Comprador: compradorDni,
                         Nro_Comprobante_Pago: comprobante,
-                        wallet_address_comprador: wallet,
-                        xml_boleta: xml,
-                        Hash_Comprobante_Pago: hashComprobante || undefined
+                        xml_boleta: xml
                     })
                 });
 
-                showAlert('success', 'Venta Certificada', `Venta registrada con éxito. NFT transferido al comprador.`);
+                showAlert('success', 'Venta Certificada', `Venta registrada con éxito. El pasaporte digital ha sido transferido al comprador.`);
                 form.reset();
 
             } catch (err) {
@@ -2962,12 +2922,6 @@
             const randomNum = Math.floor(10000000 + Math.random() * 90000000);
             form.querySelector('[name="Nro_Comprobante_Pago"]').value = `B001-${randomNum}`;
             
-            // Colocar cuenta 0 de Hardhat como default para el comprador local
-            form.querySelector('[name="wallet_address_comprador"]').value = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-
-            // Autocompletar el hash de comprobante fiscal SUNAT
-            form.querySelector('[name="Hash_Comprobante_Pago"]').value = "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-            
             // Simular un XML básico para SUNAT
             document.getElementById('xml-textarea').value = `<?xml version="1.0" encoding="UTF-8"?>\n<Invoice>\n  <ID>B001-${randomNum}</ID>\n  <IssueDate>${new Date().toISOString().split('T')[0]}</IssueDate>\n  <Customer>\n    <ID schemeID="1">${dni}</ID>\n  </Customer>\n  <LineItem>\n    <SKU>${sku}</SKU>\n    <Description>Prenda Premium ALDA</Description>\n  </LineItem>\n</Invoice>`;
             
@@ -2982,8 +2936,10 @@
         // 6. DEV UTILITY: SEED DATABASE
         async function seedDatabase() {
             const btn = document.getElementById('btn-seed');
-            btn.disabled = true;
-            btn.innerHTML = `<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg> Sembrando...`;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg> Sembrando...`;
+            }
 
             try {
                 const res = await fetch(`${API_BASE}/debug/seed`, { method: 'POST' });
@@ -3000,8 +2956,10 @@
             } catch (err) {
                 showAlert('error', 'Fallo de Sembrado', err.message);
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg> <span>Sembrar Base de Datos Neo4j</span>`;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg> <span>Sembrar Base de Datos Neo4j</span>`;
+                }
             }
         }
 

@@ -487,13 +487,28 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
     const { SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador, xml_boleta } = req.body;
     const tiendaRuc = req.user.DNI_O_RUC;
 
-    if (!SKU_Producto_Final || !DNI_O_RUC_Comprador || !Nro_Comprobante_Pago || !wallet_address_comprador || !xml_boleta) {
-        return res.status(400).json({ error: 'Faltan parámetros obligatorios: SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago, wallet_address_comprador y xml_boleta.' });
+    if (!SKU_Producto_Final || !DNI_O_RUC_Comprador || !Nro_Comprobante_Pago || !xml_boleta) {
+        return res.status(400).json({ error: 'Faltan parámetros obligatorios: SKU_Producto_Final, DNI_O_RUC_Comprador, Nro_Comprobante_Pago y xml_boleta.' });
     }
 
     const session = driver.session();
 
     try {
+        // Generar u obtener de forma silenciosa la billetera custodial del comprador
+        let targetWallet = wallet_address_comprador;
+        if (!targetWallet) {
+            const clientCheck = await session.run(
+                `MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni}) RETURN c.wallet_address AS wallet`,
+                { dni: DNI_O_RUC_Comprador }
+            );
+            if (clientCheck.records.length > 0 && clientCheck.records[0].get('wallet')) {
+                targetWallet = clientCheck.records[0].get('wallet');
+            } else {
+                targetWallet = '0x' + require('crypto').randomBytes(20).toString('hex');
+                console.log(`[API Venta] Generando Billetera Custodial Silenciosa para el Comprador DNI/RUC ${DNI_O_RUC_Comprador}: ${targetWallet}`);
+            }
+        }
+
         // 1. Obtener el Token ID, Estado y validar custodia en Neo4j
         const findResult = await session.run(
             `MATCH (p:Producto {SKU_Producto_Final: $sku})-[r:ENTREGADO_A]->(t:Tienda {id_tienda: $tiendaRuc}) 
@@ -539,7 +554,7 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
         console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}`);
 
         // 2. Firmar y registrar en zkSyscoin la venta (Cambio de estado y Hash de boleta)
-        const { txHash, hashSUNAT } = await ejecutarVentaOnChain(tokenId, wallet_address_comprador, xml_boleta);
+        const { txHash, hashSUNAT } = await ejecutarVentaOnChain(tokenId, targetWallet, xml_boleta);
 
         console.log(`[API Venta] Confirmada transacción blockchain: ${txHash}. Actualizando Neo4j...`);
 
@@ -572,7 +587,7 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
             sku: SKU_Producto_Final,
             tiendaRuc,
             dni_o_ruc: DNI_O_RUC_Comprador,
-            wallet_address: wallet_address_comprador,
+            wallet_address: targetWallet,
             hash_boleta: hashSUNAT,
             nro_comprobante: Nro_Comprobante_Pago,
             txHash

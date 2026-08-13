@@ -62,7 +62,7 @@ const validateBody = (schema) => {
         const result = schema.safeParse(req.body);
         if (!result.success) {
             return res.status(400).json({
-                error: 'Bad Request. Falla en validación de datos (Spec-Driven Validation).',
+                error: 'Por favor, verifique que los datos ingresados sean correctos e intente nuevamente.',
                 details: (result.error.issues || []).map(err => ({
                     field: err.path.join('.'),
                     message: err.message
