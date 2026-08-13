@@ -453,29 +453,89 @@
         <!-- Hidden container for printing labels -->
         <div id="print-label-container" class="hidden"></div>
 
-        <!-- 1. LOGIN VIEW -->
+        <!-- 1. LOGIN & REGISTRATION VIEW -->
         <section id="view-login" class="max-w-md mx-auto my-12 transition duration-300">
             <div class="glass-panel rounded-2xl p-8 glow-gold">
-                <div class="text-center mb-8">
-                    <h2 class="title-serif text-2xl font-bold tracking-tight text-neutral-100">Iniciar Sesión</h2>
-                    <p class="text-sm text-neutral-400 mt-2">Accede al pasaporte digital de Kipulux</p>
+                <!-- Tabs Selector -->
+                <div class="flex border-b border-neutral-900 mb-6">
+                    <button type="button" onclick="switchAuthTab('login')" id="tab-login" class="flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-gold-500 text-neutral-100 focus:outline-none transition-colors duration-200">
+                        Iniciar Sesión
+                    </button>
+                    <button type="button" onclick="switchAuthTab('register')" id="tab-register" class="flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-transparent text-neutral-500 hover:text-neutral-300 focus:outline-none transition-colors duration-200">
+                        Registrar Cliente
+                    </button>
                 </div>
 
-                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-6">
-                    <div>
-                        <label for="login-identifier" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Usuario o Correo Electrónico</label>
-                        <input type="text" id="login-identifier" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-base md:text-sm" placeholder="ej: artesano_cusco o tienda.cusco@kipulux.com">
+                <!-- LOGIN FORM -->
+                <div id="auth-login-container">
+                    <div class="text-center mb-6">
+                        <p class="text-xs text-neutral-400">Accede al pasaporte digital de Kipulux</p>
                     </div>
-                    <div>
-                        <label for="login-password" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Contraseña</label>
-                        <input type="password" id="login-password" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-base md:text-sm" placeholder="••••••••">
+                    <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
+                        <div>
+                            <label for="login-identifier" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Usuario o Correo Electrónico</label>
+                            <input type="text" id="login-identifier" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-base md:text-sm" placeholder="ej: artesano_cusco o tienda.cusco@kipulux.com">
+                        </div>
+                        <div>
+                            <label for="login-password" class="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-2">Contraseña</label>
+                            <input type="password" id="login-password" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-base md:text-sm" placeholder="••••••••">
+                        </div>
+                        <button type="submit" id="btn-login-submit" class="w-full bg-gradient-to-r from-gold-600 to-gold-500 text-neutral-950 hover:from-gold-500 hover:to-gold-400 font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-gold-500/20 active:scale-95 transition text-sm tracking-wide uppercase flex items-center justify-center gap-2">
+                            <span>Autenticar</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- CLIENT REGISTRATION FORM -->
+                <div id="auth-register-container" class="hidden">
+                    <div class="text-center mb-6">
+                        <p class="text-xs text-neutral-400">Crea tu pasaporte para resguardo de marroquinería y propiedad digital</p>
                     </div>
-                    <button type="submit" class="w-full bg-gradient-to-r from-gold-600 to-gold-500 text-neutral-950 hover:from-gold-500 hover:to-gold-400 font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-gold-500/20 active:scale-95 transition text-sm tracking-wide uppercase">
-                        Autenticar
+                    <form id="register-form" onsubmit="handleRegisterClient(event)" class="space-y-4">
+                        <div>
+                            <label for="reg-nombre" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Nombre Completo</label>
+                            <input type="text" id="reg-nombre" required minlength="3" class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="Juan Pérez">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="reg-dni" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">DNI o RUC</label>
+                                <input type="text" id="reg-dni" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="8 o 11 dígitos">
+                            </div>
+                            <div>
+                                <label for="reg-username" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Usuario</label>
+                                <input type="text" id="reg-username" required minlength="3" class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="juan_perez">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="reg-email" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Correo Electrónico</label>
+                            <input type="email" id="reg-email" required class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="juan@correo.com">
+                        </div>
+                        <div>
+                            <label for="reg-password" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Contraseña (Mín. 6 caracteres)</label>
+                            <input type="password" id="reg-password" required minlength="6" class="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-neutral-100 focus:outline-none focus:border-gold-500 transition text-sm" placeholder="••••••••">
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <label for="reg-wallet" class="block text-[10px] font-semibold text-neutral-300 uppercase tracking-wider">Dirección Wallet EVM</label>
+                                <button type="button" onclick="regenerateRegWallet()" class="text-[9px] text-gold-500 hover:text-gold-400 uppercase tracking-wider font-semibold focus:outline-none transition-colors">Generar Nueva</button>
+                            </div>
+                            <input type="text" id="reg-wallet" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3.5 py-2.5 text-gold-400 focus:outline-none focus:border-gold-500 transition text-[11px] font-mono" placeholder="0x...">
+                            <span class="block text-[9px] text-neutral-500 mt-1">Generada de forma segura para resguardo criptográfico.</span>
+                        </div>
+                        <button type="submit" id="btn-register-submit" class="w-full bg-gradient-to-r from-gold-600 to-gold-500 text-neutral-950 hover:from-gold-500 hover:to-gold-400 font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-gold-500/20 active:scale-95 transition text-sm tracking-wide uppercase flex items-center justify-center gap-2 mt-2">
+                            <span>Registrar Cuenta</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Dev Utility: Database Seeding (Solo para Demostración) -->
+                <div class="mt-8 pt-6 border-t border-neutral-900 text-center">
+                    <p class="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold mb-3">Entorno de Demostración</p>
+                    <button type="button" id="btn-seed" onclick="seedDatabase()" class="inline-flex items-center gap-1.5 bg-neutral-950 hover:bg-neutral-900 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-4 rounded-lg text-xs transition uppercase tracking-wider active:scale-95">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17m0 0V5"/></svg>
+                        <span>Sembrar Base de Datos</span>
                     </button>
-                </form>
-
-
+                </div>
             </div>
         </section>
 
@@ -988,7 +1048,7 @@
                                         <input type="text" name="ubigeo" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="080101" maxlength="6" pattern="\d{6}">
                                     </div>
                                 </div>
-                                <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                <button type="submit" id="btn-artisan-submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5">
                                     Registrar Artesano
                                 </button>
                             </form>
@@ -1053,7 +1113,7 @@
                                     <textarea id="xml-textarea" name="xml_boleta" required rows="3" class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-2 text-xs font-mono text-neutral-350 focus:outline-none focus:border-gold-500" placeholder="&lt;invoice&gt;&lt;detail&gt;prenda premium&lt;/detail&gt;&lt;/invoice&gt;"></textarea>
                                 </div>
 
-                                <button type="submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95">
+                                <button type="submit" id="btn-sale-submit" class="w-full bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-2.5 px-4 rounded-lg text-sm transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5">
                                     Registrar Venta & Transferir NFT
                                 </button>
                             </form>
@@ -1790,10 +1850,95 @@
             document.getElementById('login-password').value = password;
         }
 
+        // Alternar entre las pestañas de Login y Registro de Cliente
+        function switchAuthTab(tab) {
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+            const loginContainer = document.getElementById('auth-login-container');
+            const registerContainer = document.getElementById('auth-register-container');
+
+            if (tab === 'login') {
+                tabLogin.className = "flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-gold-500 text-neutral-100 focus:outline-none transition-colors duration-200";
+                tabRegister.className = "flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-transparent text-neutral-500 hover:text-neutral-300 focus:outline-none transition-colors duration-200";
+                loginContainer.classList.remove('hidden');
+                registerContainer.classList.add('hidden');
+            } else if (tab === 'register') {
+                tabRegister.className = "flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-gold-500 text-neutral-100 focus:outline-none transition-colors duration-200";
+                tabLogin.className = "flex-1 pb-3 text-sm font-semibold tracking-wider uppercase border-b-2 border-transparent text-neutral-500 hover:text-neutral-300 focus:outline-none transition-colors duration-200";
+                loginContainer.classList.add('hidden');
+                registerContainer.classList.remove('hidden');
+                
+                // Generar wallet automática si el campo está vacío
+                const walletInput = document.getElementById('reg-wallet');
+                if (!walletInput.value) {
+                    regenerateRegWallet();
+                }
+            }
+        }
+
+        // Generar una dirección wallet EVM aleatoria (Mock-up seguro de resguardo)
+        function regenerateRegWallet() {
+            const randomHex = '0x' + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
+            document.getElementById('reg-wallet').value = randomHex;
+        }
+
+        // Manejar el registro del cliente
+        async function handleRegisterClient(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('reg-nombre').value.trim();
+            const dni = document.getElementById('reg-dni').value.trim();
+            const username = document.getElementById('reg-username').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value.trim();
+            const wallet = document.getElementById('reg-wallet').value.trim();
+
+            const btn = document.getElementById('btn-register-submit');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-neutral-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Registrando...`;
+
+            try {
+                showAlert('info', 'Registrando Cuenta', 'Vinculando DNI con el sistema de trazabilidad y criptografía...');
+                await request(`${API_BASE}/clientes/registrar`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        DNI_O_RUC_Comprador: dni,
+                        nombre_completo: nombre,
+                        wallet_address: wallet,
+                        username: username,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                showAlert('success', 'Registro Exitoso', 'Tu pasaporte digital ha sido creado. Inicia sesión con tus credenciales.');
+                
+                // Limpiar formulario y redireccionar a pestaña login
+                document.getElementById('register-form').reset();
+                switchAuthTab('login');
+                
+                // Pre-llenar el identificador con el username creado para facilitar el login
+                document.getElementById('login-identifier').value = username;
+                document.getElementById('login-password').value = '';
+                document.getElementById('login-password').focus();
+
+            } catch (err) {
+                showAlert('error', 'Fallo al Registrar', err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
         async function handleLogin(e) {
             e.preventDefault();
             const identifier = document.getElementById('login-identifier').value;
             const password = document.getElementById('login-password').value;
+
+            const btn = document.getElementById('btn-login-submit');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-neutral-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Autenticando...`;
 
             try {
                 const data = await request(`${API_BASE}/auth/mock-login`, {
@@ -1814,6 +1959,9 @@
                     userFriendlyMsg = 'Credenciales incorrectas. Verifique su usuario/correo o contraseña e intente nuevamente.';
                 }
                 showAlert('error', 'Error de Autenticación', userFriendlyMsg);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 
@@ -2352,6 +2500,11 @@
             const credentialsBox = document.getElementById('artisan-credentials-box');
             credentialsBox.classList.add('hidden');
 
+            const btn = document.getElementById('btn-artisan-submit');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-neutral-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Registrando...`;
+
             try {
                 showAlert('info', 'Registrando Artesano', 'Creando cuenta, activando credenciales de seguridad y registrando en el sistema...');
                 const data = await request(`${API_BASE}/tiendas/registrar-artesano`, {
@@ -2371,6 +2524,9 @@
 
             } catch (err) {
                 showAlert('error', 'Error de Onboarding', err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 
@@ -2385,6 +2541,11 @@
             const wallet = form.querySelector('[name="wallet_address_comprador"]').value;
             const xml = document.getElementById('xml-textarea').value;
             const hashComprobante = form.querySelector('[name="Hash_Comprobante_Pago"]').value;
+
+            const btn = document.getElementById('btn-sale-submit');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-neutral-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Procesando...`;
 
             try {
                 showAlert('info', 'Certificando Venta', 'Registrando comprobante de pago SUNAT y actualizando pasaporte digital...');
@@ -2405,6 +2566,9 @@
 
             } catch (err) {
                 showAlert('error', 'Fallo en Venta', err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 
