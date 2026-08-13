@@ -18,6 +18,11 @@ module.exports = {
       url: "https://syscoin-evm.publicnode.com",
       chainId: 57,
       accounts: process.env.VAULT_PRIVATE_KEY ? [process.env.VAULT_PRIVATE_KEY] : []
+    },
+    arbitrumSepolia: {
+      url: process.env.ARBITRUM_RPC_URL || process.env.BLOCKCHAIN_RPC || "https://sepolia-rollup.arbitrum.io/rpc",
+      chainId: 421614,
+      accounts: process.env.VAULT_PRIVATE_KEY ? [process.env.VAULT_PRIVATE_KEY] : []
     }
   }
 };

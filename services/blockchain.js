@@ -6,17 +6,18 @@ require('dotenv').config();
 // ==========================================
 // 1. CONFIGURACIÓN DE RED ZKSYSCOIN TANENBAUM
 // ==========================================
-const rawRpcUrl = process.env.RPC_URL || 'http://127.0.0.1:8545';
+const chainId = Number(process.env.CHAIN_ID || 421614);
+const rawRpcUrl = process.env.ARBITRUM_RPC_URL || process.env.RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc';
 const rpcUrl = rawRpcUrl.replace('host.docker.internal', '127.0.0.1');
 
-const zkSyscoinTanenbaum = defineChain({
-  id: Number(process.env.CHAIN_ID || 31337),
-  name: 'zkSyscoin Tanenbaum Testnet',
-  network: 'zksyscoin-tanenbaum',
+const blockchainChain = defineChain({
+  id: chainId,
+  name: chainId === 421614 ? 'Arbitrum Sepolia Testnet' : (chainId === 31337 ? 'Local Hardhat' : 'zkSyscoin Tanenbaum Testnet'),
+  network: chainId === 421614 ? 'arbitrum-sepolia' : (chainId === 31337 ? 'hardhat' : 'zksyscoin-tanenbaum'),
   nativeCurrency: {
     decimals: 18,
-    name: 'Syscoin',
-    symbol: 'SYS',
+    name: chainId === 421614 ? 'Ether' : 'Syscoin',
+    symbol: chainId === 421614 ? 'ETH' : 'SYS',
   },
   rpcUrls: {
     default: {
@@ -44,13 +45,13 @@ const contractAddress = process.env.NEO4J_OR_BLOCKCHAIN_CONTRACT_ADDRESS || '0x4
 
 // Clientes de Viem
 const publicClient = createPublicClient({
-  chain: zkSyscoinTanenbaum,
+  chain: blockchainChain,
   transport: http()
 });
 
 const walletClient = createWalletClient({
   account,
-  chain: zkSyscoinTanenbaum,
+  chain: blockchainChain,
   transport: http()
 });
 

@@ -1394,7 +1394,7 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/api/productos/inspeccionar/:sku', authenticateToken, async (req, res) => {
+app.get('/api/productos/inspeccionar/:sku', async (req, res) => {
     const { sku } = req.params;
     const session = driver.session();
     try {
