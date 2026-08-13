@@ -1592,6 +1592,72 @@
         let currentUser = null; // Decoded payload of JWT
         const API_BASE = window.location.origin + '/api';
 
+        // Cliente de red unificado con tolerancia a fallos y manejo de errores UX amigable
+        async function request(url, options = {}) {
+            try {
+                const token = localStorage.getItem('accessToken');
+                if (token) {
+                    if (!options.headers) options.headers = {};
+                    if (!options.headers['Authorization']) {
+                        options.headers['Authorization'] = `Bearer ${token}`;
+                    }
+                }
+
+                // Evitar forzar JSON si enviamos un FormData para cargas multimedia
+                if (options.body && !(options.body instanceof FormData)) {
+                    if (!options.headers) options.headers = {};
+                    if (!options.headers['Content-Type']) {
+                        options.headers['Content-Type'] = 'application/json';
+                    }
+                }
+
+                const res = await fetch(url, options);
+
+                // Validar de forma segura si la respuesta es de tipo JSON
+                const contentType = res.headers.get('content-type');
+                let data = null;
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        data = await res.json();
+                    } catch (parseErr) {
+                        console.error('[JSON Parse Error]:', parseErr);
+                    }
+                }
+
+                if (!res.ok) {
+                    // Mapeo de errores semánticos y humanos
+                    let userFriendlyMessage = 'No se pudo completar la operación. Por favor, intente de nuevo.';
+                    
+                    if (data && (data.error || data.message)) {
+                        userFriendlyMessage = data.error || data.message;
+                    } else if (res.status === 401) {
+                        userFriendlyMessage = 'Sesión expirada o no autorizada. Por favor, inicie sesión nuevamente.';
+                    } else if (res.status === 403) {
+                        userFriendlyMessage = 'Acceso denegado por políticas del servidor. Verifique sus permisos o restricciones CORS.';
+                    } else if (res.status === 404) {
+                        userFriendlyMessage = 'El recurso solicitado no existe o no está disponible.';
+                    } else if (res.status >= 500) {
+                        userFriendlyMessage = 'El servidor corporativo experimentó un inconveniente temporal. Intente nuevamente en unos minutos.';
+                    }
+                    
+                    throw new Error(userFriendlyMessage);
+                }
+
+                return data || { success: true };
+            } catch (err) {
+                console.error('[Fetch Network Error]:', err);
+                
+                // Mapear excepciones físicas de conexión o bloqueos CORS crudos del navegador
+                if (err.message && err.message.includes('Failed to fetch')) {
+                    throw new Error('No se pudo establecer comunicación con el servidor de Kipulux. Revise su conexión a Internet o políticas CORS.');
+                }
+                if (err.message && err.message.includes('Unexpected token')) {
+                    throw new Error('La respuesta del servidor no tiene un formato válido (JSON esperado). Póngase en contacto con soporte.');
+                }
+                throw err;
+            }
+        }
+
         // Initialize App on load
         window.addEventListener('DOMContentLoaded', () => {
             checkAuth();
@@ -1655,17 +1721,14 @@
                             formData.append('Coleccion', item.coleccion);
                             formData.append('Color', item.color);
 
-                            const res = await fetch(`${API_BASE}/productos/crear`, {
+                            await request(`${API_BASE}/productos/crear`, {
                                 method: 'POST',
-                                headers: { 'Authorization': `Bearer ${token}` },
                                 body: formData
                             });
 
-                            if (res.ok) {
-                                const deleteTx = db.transaction('queued_passports', 'readwrite');
-                                deleteTx.objectStore('queued_passports').delete(item.id);
-                                showToast('success', 'Pasaporte Sincronizado', `SKU ${item.sku} registrado en la red.`);
-                            }
+                            const deleteTx = db.transaction('queued_passports', 'readwrite');
+                            deleteTx.objectStore('queued_passports').delete(item.id);
+                            showToast('success', 'Pasaporte Sincronizado', `SKU ${item.sku} registrado en la red.`);
                         } catch (err) {
                             console.warn(`[Sync Offline Error] SKU ${item.sku}:`, err);
                         }
@@ -1733,16 +1796,10 @@
             const password = document.getElementById('login-password').value;
 
             try {
-                const res = await fetch(`${API_BASE}/auth/mock-login`, {
+                const data = await request(`${API_BASE}/auth/mock-login`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identifier, password })
                 });
-
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Credenciales incorrectas');
-                }
 
                 // Save token & info
                 localStorage.setItem('accessToken', data.accessToken);
@@ -1752,7 +1809,11 @@
                 showDashboard();
 
             } catch (err) {
-                showAlert('error', 'Error de Autenticación', err.message);
+                let userFriendlyMsg = err.message;
+                if (err.message && (err.message.includes('Credenciales') || err.message.includes('Contraseña'))) {
+                    userFriendlyMsg = 'Credenciales incorrectas. Verifique su usuario/correo o contraseña e intente nuevamente.';
+                }
+                showAlert('error', 'Error de Autenticación', userFriendlyMsg);
             }
         }
 
@@ -2175,18 +2236,10 @@
                     }
                     formData.append('Color', colorVal);
 
-                    const res = await fetch(`${API_BASE}/productos/crear`, {
+                    const data = await request(`${API_BASE}/productos/crear`, {
                         method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        },
                         body: formData
                     });
-
-                    const data = await res.json();
-                    if (!res.ok) {
-                        throw new Error(data.error || `Error en unidad ${i} (${currentSku})`);
-                    }
                     successCount++;
                 }
 
@@ -2301,19 +2354,10 @@
 
             try {
                 showAlert('info', 'Registrando Artesano', 'Creando cuenta, activando credenciales de seguridad y registrando en el sistema...');
-                const res = await fetch(`${API_BASE}/tiendas/registrar-artesano`, {
+                const data = await request(`${API_BASE}/tiendas/registrar-artesano`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
                     body: JSON.stringify({ RUC_Fabricante: ruc, nombre_taller: taller, email, ubigeo })
                 });
-
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Error al registrar artesano');
-                }
 
                 showAlert('success', 'Onboarding Finalizado', `Artesano registrado exitosamente.`);
                 
@@ -2344,12 +2388,8 @@
 
             try {
                 showAlert('info', 'Certificando Venta', 'Registrando comprobante de pago SUNAT y actualizando pasaporte digital...');
-                const res = await fetch(`${API_BASE}/productos/vender`, {
+                const data = await request(`${API_BASE}/productos/vender`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
                     body: JSON.stringify({
                         SKU_Producto_Final: sku,
                         DNI_O_RUC_Comprador: compradorDni,
@@ -2359,11 +2399,6 @@
                         Hash_Comprobante_Pago: hashComprobante || undefined
                     })
                 });
-
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Error al procesar venta');
-                }
 
                 showAlert('success', 'Venta Certificada', `Venta registrada con éxito. NFT transferido al comprador.`);
                 form.reset();
@@ -2395,15 +2430,7 @@
             emptyState.classList.add('hidden');
 
             try {
-                const res = await fetch(`${API_BASE}/clientes/historial-compras`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!res.ok) {
-                    throw new Error('No se pudo obtener el historial de compras.');
-                }
-
-                const data = await res.json();
+                const data = await request(`${API_BASE}/clientes/historial-compras`);
                 let productCount = 0;
 
                 data.forEach(shopGroup => {
@@ -2842,7 +2869,7 @@
                 ${icon}
                 <div class="flex-grow min-w-0">
                     <h5 class="text-xs font-bold text-neutral-100">${title}</h5>
-                    <p class="text-[11px] text-neutral-400 mt-0.5 leading-relaxed truncate">${desc}</p>
+                    <p class="text-[11px] text-neutral-400 mt-0.5 leading-relaxed break-words">${desc}</p>
                 </div>
                 <button type="button" class="text-neutral-500 hover:text-neutral-300 transition-colors self-start focus:outline-none" onclick="this.parentElement.remove()">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

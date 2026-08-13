@@ -73,17 +73,22 @@ async function uploadToSupabaseBucket(fileBuffer, originalName, mimeType, bucket
     }
 }
 
-// ==========================================
 // A1) SEGURIDAD: CONFIGURACIÓN DE CORS Y RATE LIMITING
 // ==========================================
-const allowedOrigins = process.env.CORS_ORIGINS 
-  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()) 
-  : (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV 
-      ? ['http://localhost:3000', 'http://127.0.0.1:3000'] 
+const originsSource = process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || process.env.FRONTEND_URL;
+const allowedOrigins = originsSource
+  ? originsSource.split(',').map(s => s.trim().replace(/\/$/, ''))
+  : (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000']
       : []);
+
+console.log('[CORS] Configuración de Orígenes Permitidos:', allowedOrigins);
+
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    const sanitizedOrigin = origin ? origin.trim().replace(/\/$/, '') : '';
+    // Permitir si no hay origen (ej. curl, Postman), si está en allowedOrigins, o si no estamos en producción
+    if (!origin || allowedOrigins.includes(sanitizedOrigin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('Acceso denegado por políticas de seguridad CORS'));
@@ -662,7 +667,7 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
         `, { identifier });
 
         if (result.records.length === 0) {
-            return res.status(401).json({ error: 'Credenciales inválidas (usuario no encontrado).' });
+            return res.status(401).json({ success: false, error: 'Credenciales inválidas (usuario no encontrado).' });
         }
 
         const record = result.records[0];
@@ -678,7 +683,7 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
         }
 
         if (!isMatch) {
-            return res.status(401).json({ error: 'Contraseña incorrecta.' });
+            return res.status(401).json({ success: false, error: 'Contraseña incorrecta.' });
         }
 
         const token = jwt.sign(
@@ -688,6 +693,7 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
         );
 
         return res.status(200).json({
+            success: true,
             accessToken: token,
             tokenType: 'Bearer',
             expiresIn: '2h',
@@ -697,7 +703,7 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
 
     } catch (error) {
         console.error('[API Auth] Error en mock-login:', error);
-        return res.status(500).json({ error: 'Error interno en la autenticación.' });
+        return res.status(500).json({ success: false, error: 'Error interno en la autenticación.' });
     } finally {
         await session.close();
     }
@@ -1669,6 +1675,9 @@ app.post('/api/clientes/registrar', validateBody(registrarClienteSchema), async 
     const { DNI_O_RUC_Comprador, nombre_completo, wallet_address, username, email, password } = req.body;
     const session = driver.session();
     try {
+        // Cifrar la contraseña usando bcryptjs antes de guardarla en Neo4j
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         await session.run(`
             MERGE (c:Cliente {DNI_O_RUC_Comprador: $dni})
             ON CREATE SET c.nombre_completo = $nombre,
@@ -1687,9 +1696,10 @@ app.post('/api/clientes/registrar', validateBody(registrarClienteSchema), async 
             wallet: wallet_address,
             username,
             email,
-            password
+            password: hashedPassword
         });
         return res.status(201).json({
+            success: true,
             message: 'Cliente registrado exitosamente en la base de datos de grafos.',
             DNI_O_RUC_Comprador,
             nombre_completo,
@@ -1699,7 +1709,7 @@ app.post('/api/clientes/registrar', validateBody(registrarClienteSchema), async 
         });
     } catch (error) {
         console.error('[API Cliente Registro] Error:', error);
-        return res.status(500).json({ error: 'Error interno al registrar cliente.', details: error.message });
+        return res.status(500).json({ success: false, error: 'Error interno al registrar cliente.', details: error.message });
     } finally {
         await session.close();
     }
@@ -1753,7 +1763,7 @@ app.post('/api/tiendas/registrar-artesano', authenticateToken, validateBody(regi
 
     // Verificar que el actor sea una Tienda (RUC de 11 dígitos)
     if (!tiendaRuc || tiendaRuc.length !== 11) {
-        return res.status(403).json({ error: 'Acceso denegado. Solo las tiendas autorizadas con RUC pueden registrar artesanos.' });
+        return res.status(403).json({ success: false, error: 'Acceso denegado. Solo las tiendas autorizadas con RUC pueden registrar artesanos.' });
     }
 
     const { generatePrivateKey, privateKeyToAccount } = require('viem/accounts');
@@ -1801,6 +1811,7 @@ app.post('/api/tiendas/registrar-artesano', authenticateToken, validateBody(regi
         console.log(`[EMAIL SIMULATION] Enviando credenciales de onboarding al correo: ${email} -> Usuario: ${username} | Contraseña: ${password} | Clave Privada EVM: [ENCRYPTED/KMS_SECURED]`);
 
         return res.status(201).json({
+            success: true,
             message: 'Artesano registrado y credenciales generadas exitosamente.',
             RUC_Fabricante,
             username,
@@ -1816,7 +1827,7 @@ app.post('/api/tiendas/registrar-artesano', authenticateToken, validateBody(regi
 
     } catch (error) {
         console.error('[API Onboarding] Error registrando artesano:', error);
-        return res.status(500).json({ error: 'Error interno al registrar artesano.', details: error.message });
+        return res.status(500).json({ success: false, error: 'Error interno al registrar artesano.', details: error.message });
     } finally {
         await session.close();
     }
@@ -2263,6 +2274,41 @@ app.post('/api/telegram-webhook', async (req, res) => {
             res.status(500).json({ error: e.message });
         }
     }
+});
+
+// H) MIDDLEWARE GLOBAL DE MANEJO DE ERRORES (Garantiza respuestas JSON en lugar de HTML)
+app.use((err, req, res, next) => {
+    console.error('[Global Error Handler]:', err.stack || err.message || err);
+
+    if (res.headersSent) {
+        return next(err);
+    }
+
+    // Gestionar errores de CORS inyectando cabeceras si el origen está permitido
+    if (err.message && (err.message.includes('CORS') || err.message.includes('Acceso denegado'))) {
+        const requestOrigin = req.headers.origin;
+        const sanitizedOrigin = requestOrigin ? requestOrigin.trim().replace(/\/$/, '') : '';
+        
+        // Si el origen del cliente es válido, agregamos cabeceras CORS para permitir la lectura del JSON en JS
+        if (requestOrigin && (allowedOrigins.includes(sanitizedOrigin) || process.env.NODE_ENV !== 'production')) {
+            res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
+
+        return res.status(403).json({
+            success: false,
+            error: 'Acceso denegado por políticas de seguridad CORS',
+            message: err.message
+        });
+    }
+
+    // Manejar cualquier otro error (ej. payload JSON malformado, base de datos caída)
+    const statusCode = err.status || err.statusCode || 500;
+    return res.status(statusCode).json({
+        success: false,
+        error: err.message || 'Error interno del servidor',
+        code: err.code || 'INTERNAL_SERVER_ERROR'
+    });
 });
 
 
