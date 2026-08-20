@@ -130,6 +130,15 @@ const transferenciaTiendaSchema = z.object({
         .regex(/^\d+$/, { message: 'El RUC_Tienda_Destino debe contener únicamente dígitos.' })
 }).strict({ message: 'No se permiten campos adicionales en la transferencia.' });
 
+const vincularNfcSchema = z.object({
+    SKU_Producto_Final: z.string()
+        .min(1, { message: 'El SKU_Producto_Final es obligatorio.' })
+        .regex(/^[a-zA-Z0-9-]+$/, { message: 'El SKU_Producto_Final debe ser un string alfanumérico.' }),
+    nfc_uid: z.string()
+        .min(8, { message: 'El nfc_uid debe tener al menos 8 caracteres hexadecimales.' })
+        .regex(/^[0-9A-Fa-f]+$/, { message: 'El nfc_uid debe ser hexadecimal (el UID crudo leído del chip).' })
+}).strict({ message: 'No se permiten campos adicionales en la vinculación de chip NFC.' });
+
 module.exports = {
     validateBody,
     loginSchema,
@@ -137,5 +146,6 @@ module.exports = {
     crearProductoSchema,
     registrarArtesanoSchema,
     registrarClienteSchema,
-    transferenciaTiendaSchema
+    transferenciaTiendaSchema,
+    vincularNfcSchema
 };

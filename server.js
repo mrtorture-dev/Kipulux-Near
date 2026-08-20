@@ -14,7 +14,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const { createClient } = require('@supabase/supabase-js');
 const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain, registrarVenta } = require('./services/blockchain');
-const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema } = require('./middlewares/validation');
+const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema, vincularNfcSchema } = require('./middlewares/validation');
 const { uploadFileToIPFS, uploadMetadataToIPFS, isMockMode } = require('./services/ipfsService');
 const { emitirComprobante, emitirBoletaElectronica } = require('./services/simplefact');
 require('dotenv').config();
@@ -1634,6 +1634,180 @@ app.get('/api/config/relayer-status', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Error al obtener estado del Relayer KMS' });
     }
 });
+// ==========================================
+// E3-B) VINCULACIÓN Y LECTURA DE CHIPS NFC (APP MÓVIL)
+// ==========================================
+
+/**
+ * Calcula el hash de resguardo de un UID de chip NFC.
+ * Nunca almacenamos el UID crudo: el chip es el "secreto" físico y su UID
+ * viaja únicamente desde el teléfono que lo tiene delante.
+ */
+function hashearUidNfc(uidCrudo) {
+    return crypto.createHash('sha256').update(uidCrudo.trim().toUpperCase()).digest('hex');
+}
+
+/**
+ * @swagger
+ * /api/productos/vincular-nfc:
+ *   post:
+ *     summary: Vincula un chip NFC físico a una prenda ya fabricada
+ *     description: Permite al Artesano asociar el chip NFC embebido en la prenda con su SKU. Se guarda únicamente el hash SHA-256 del UID.
+ *     tags:
+ *       - Flujo Artesano
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - SKU_Producto_Final
+ *               - nfc_uid
+ *             properties:
+ *               SKU_Producto_Final:
+ *                 type: string
+ *                 example: "KIPU-CUERO-999"
+ *               nfc_uid:
+ *                 type: string
+ *                 example: "04A3B2C1D5E680"
+ *     responses:
+ *       200:
+ *         description: Chip vinculado con éxito.
+ *       403:
+ *         description: La prenda no pertenece al artesano autenticado.
+ *       404:
+ *         description: El producto no existe.
+ *       409:
+ *         description: El chip ya está vinculado a otra prenda.
+ */
+app.post('/api/productos/vincular-nfc', authenticateToken, validateBody(vincularNfcSchema), async (req, res) => {
+    const { SKU_Producto_Final, nfc_uid } = req.body;
+    const rucArtesano = req.user.DNI_O_RUC;
+    const nfcHash = hashearUidNfc(nfc_uid);
+
+    const session = driver.session();
+    try {
+        // Query Anchoring: el artesano sólo puede marcar prendas que él confeccionó.
+        const propiedad = await session.run(`
+            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            OPTIONAL MATCH (art:Artesano {RUC_Fabricante: $ruc})-[:CONFECCIONÓ]->(p)
+            RETURN p.nfc_uid_hash AS hash_actual, art IS NOT NULL AS es_suyo
+        `, { sku: SKU_Producto_Final, ruc: rucArtesano });
+
+        if (propiedad.records.length === 0) {
+            return res.status(404).json({ error: 'El producto especificado no existe.' });
+        }
+        if (!propiedad.records[0].get('es_suyo')) {
+            return res.status(403).json({ error: 'Acceso denegado. La prenda no fue confeccionada por este artesano.' });
+        }
+
+        // Un chip físico sólo puede pertenecer a una prenda.
+        const ocupado = await session.run(
+            'MATCH (otro:Producto {nfc_uid_hash: $hash}) WHERE otro.SKU_Producto_Final <> $sku RETURN otro.SKU_Producto_Final AS sku',
+            { hash: nfcHash, sku: SKU_Producto_Final }
+        );
+        if (ocupado.records.length > 0) {
+            return res.status(409).json({
+                error: `Este chip ya está vinculado a la prenda ${ocupado.records[0].get('sku')}.`
+            });
+        }
+
+        await session.run(
+            'MATCH (p:Producto {SKU_Producto_Final: $sku}) SET p.nfc_uid_hash = $hash, p.nfc_vinculado_en = datetime()',
+            { sku: SKU_Producto_Final, hash: nfcHash }
+        );
+
+        return res.status(200).json({
+            message: 'Chip NFC vinculado con éxito.',
+            SKU_Producto_Final,
+            nfc_uid_hash: nfcHash
+        });
+    } catch (error) {
+        console.error('[API Vincular NFC] Error:', error);
+        return res.status(500).json({ error: 'Error interno al vincular el chip NFC.' });
+    } finally {
+        await session.close();
+    }
+});
+
+/**
+ * @swagger
+ * /api/productos/por-nfc/{nfcUid}:
+ *   get:
+ *     summary: Verifica la autenticidad de una prenda leyendo su chip NFC
+ *     description: Lectura pública de trazabilidad. Devuelve el origen de la prenda sin exponer datos personales del comprador.
+ *     tags:
+ *       - Flujo Cliente
+ *     parameters:
+ *       - in: path
+ *         name: nfcUid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UID hexadecimal crudo leído del chip.
+ *     responses:
+ *       200:
+ *         description: Prenda auténtica; se devuelve su trazabilidad pública.
+ *       404:
+ *         description: Ninguna prenda está vinculada a este chip.
+ */
+app.get('/api/productos/por-nfc/:nfcUid', async (req, res) => {
+    const { nfcUid } = req.params;
+
+    if (!/^[0-9A-Fa-f]{8,}$/.test(nfcUid)) {
+        return res.status(400).json({ error: 'El UID del chip debe ser hexadecimal.' });
+    }
+
+    const session = driver.session();
+    try {
+        const result = await session.run(`
+            MATCH (p:Producto {nfc_uid_hash: $hash})
+            OPTIONAL MATCH (art:Artesano)-[:CONFECCIONÓ]->(p)
+            OPTIONAL MATCH (p)-[:PROVIENE_DE]->(lote:LoteCuero)
+            OPTIONAL MATCH (p)-[:ENTREGADO_A]->(t:Tienda)
+            RETURN
+                p.SKU_Producto_Final AS sku,
+                p.status AS status,
+                p.Foto_Producto AS Foto_Producto,
+                p.Descripcion AS Descripcion,
+                p.nft_token_id AS nft_token_id,
+                p.tx_hash_mint AS tx_hash_mint,
+                art.nombre_taller AS taller_artesano,
+                art.RUC_Fabricante AS RUC_Fabricante,
+                lote.ID_Lote_Cuero_Utilizado AS ID_Lote_Cuero_Utilizado,
+                t.nombre_tienda AS nombre_tienda
+        `, { hash: hashearUidNfc(nfcUid) });
+
+        if (result.records.length === 0) {
+            return res.status(404).json({ error: 'Ninguna prenda está vinculada a este chip NFC.' });
+        }
+
+        const record = result.records[0];
+        // Se omiten deliberadamente los datos del comprador (nombre, DNI, boleta).
+        return res.status(200).json({
+            autentico: true,
+            sku: record.get('sku'),
+            status: record.get('status'),
+            Foto_Producto: record.get('Foto_Producto'),
+            Descripcion: record.get('Descripcion') || 'Sin descripción artesanal.',
+            nft_token_id: record.get('nft_token_id'),
+            tx_hash_mint: record.get('tx_hash_mint'),
+            taller_artesano: record.get('taller_artesano') || 'N/A',
+            RUC_Fabricante: record.get('RUC_Fabricante') || 'N/A',
+            ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A',
+            nombre_tienda: record.get('nombre_tienda') || 'N/A'
+        });
+    } catch (error) {
+        console.error('[API Verificar NFC] Error:', error);
+        return res.status(500).json({ error: 'Error interno al verificar el chip NFC.' });
+    } finally {
+        await session.close();
+    }
+});
+
 // ==========================================
 // E4) ENDPOINTS DE ONBOARDING Y HISTORIAL (MÓDULOS 1 Y 2)
 // ==========================================
