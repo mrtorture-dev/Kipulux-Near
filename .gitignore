@@ -21,3 +21,7 @@ docker/neo4j/
 scratch/
 
 
+target/
+contracts/near/target/
+.idea/
+dist/
