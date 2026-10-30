@@ -14,6 +14,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const { createClient } = require('@supabase/supabase-js');
 const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain, registrarVenta } = require('./services/blockchain');
+const nearService = require('./services/nearService');
 const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema, vincularNfcSchema } = require('./middlewares/validation');
 const { uploadFileToIPFS, uploadMetadataToIPFS, isMockMode } = require('./services/ipfsService');
 const { emitirComprobante, emitirBoletaElectronica } = require('./services/simplefact');
@@ -432,7 +433,22 @@ async function autoGenerarProductoYEntregarATienda(sku, tiendaRuc, session) {
     
     // 4. Mintear NFT en la blockchain para el artesano
     console.log(`[Auto-Generador Demo] Acuñando NFT de origen para SKU: ${sku} en wallet artesano: ${artesanoAddress}...`);
-    const { tokenId, txHash } = await ejecutarMintOnChain(artesanoAddress, tokenUri);
+    let tokenId, txHash, nearReceiptId;
+            try {
+                const nearMint = await nearService.mintAuthorized(artesanoAddress, SKU_Producto_Final, tokenUri, {
+                    lote: ID_Lote_Cuero_Utilizado,
+                    descripcion: Descripcion,
+                    media: fotoUrl
+                });
+                tokenId = nearMint.nearTokenId || nearMint.tokenId;
+                txHash = nearMint.nearTxHash;
+                nearReceiptId = nearMint.receiptId;
+            } catch (nearErr) {
+                console.warn('[API Crear] Fallback a blockchain local:', nearErr.message);
+                const evmRes = await ejecutarMintOnChain(artesanoAddress, tokenUri);
+                tokenId = evmRes.tokenId;
+                txHash = evmRes.txHash;
+            }
     
     // 5. Crear el producto en Neo4j y vincularlo
     const fotoUrl = "https://alda.com.pe/wp-content/uploads/2025/07/Billetera-caballero_Mesa-de-trabajo-1-copia-18.png";
@@ -554,7 +570,17 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
         console.log(`[API Venta] Iniciando transacción de venta coordinada. SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}`);
 
         // 2. Firmar y registrar en zkSyscoin la venta (Cambio de estado y Hash de boleta)
-        const { txHash, hashSUNAT } = await ejecutarVentaOnChain(tokenId, targetWallet, xml_boleta);
+        let txHash, hashSUNAT;
+        try {
+            const nearVenta = await nearService.registrarVenta(tokenId, targetWallet, crypto.createHash('sha256').update(xml_boleta || '').digest('hex'), Nro_Comprobante_Pago);
+            txHash = nearVenta.nearTxHash;
+            hashSUNAT = crypto.createHash('sha256').update(xml_boleta || '').digest('hex');
+        } catch (nearErr) {
+            console.warn('[API Venta] Fallback a blockchain local:', nearErr.message);
+            const evmVenta = await ejecutarVentaOnChain(tokenId, targetWallet, xml_boleta);
+            txHash = evmVenta.txHash;
+            hashSUNAT = evmVenta.hashSUNAT;
+        }
 
         console.log(`[API Venta] Confirmada transacción blockchain: ${txHash}. Actualizando Neo4j...`);
 
@@ -1192,7 +1218,15 @@ app.post('/api/productos/transferir-a-tienda', authenticateToken, validateBody(t
 
         // 4. Transferir custodia on-chain
         console.log(`[API Transfer] Transfiriendo custodia B2B on-chain para SKU: ${SKU_Producto_Final}, TokenID: ${tokenId}...`);
-        const { txHash } = await ejecutarTransferenciaOnChain(tokenId, tiendaAddress);
+        let txHash;
+        try {
+            const nearTrans = await nearService.transferirCustodia(tokenId, RUC_Tienda_Destino);
+            txHash = nearTrans.nearTxHash;
+        } catch (nearErr) {
+            console.warn('[API Transfer] Fallback a blockchain local:', nearErr.message);
+            const evmTrans = await ejecutarTransferenciaOnChain(tokenId, tiendaAddress);
+            txHash = evmTrans.txHash;
+        }
 
         // 5. Actualizar Neo4j
         await session.run(`
