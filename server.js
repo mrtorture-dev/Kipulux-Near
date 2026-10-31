@@ -15,6 +15,52 @@ const helmet = require('helmet');
 const { createClient } = require('@supabase/supabase-js');
 const { ejecutarVentaOnChain, ejecutarMintOnChain, ejecutarTransferenciaOnChain, registrarVenta } = require('./services/blockchain');
 const nearService = require('./services/nearService');
+
+// ==========================================
+// HELPER: NORMALIZAR RESPUESTA DE PRODUCTO CON CAMPOS NEAR (RF-08 / RF-09 / CONTRATO APP)
+// ==========================================
+function enriquecerProductoConNear(prod, defaultStatus = 'ORIGINADO') {
+    const CONTRACT_ID = process.env.NEAR_CONTRACT_NAME || 'kipulux-8a0762.testnet';
+    const status = prod.status || defaultStatus;
+    const rawTokenId = prod.nft_token_id || prod.nearTokenId || prod.tokenId || prod.sku || prod.SKU_Producto_Final;
+    const nearTokenId = rawTokenId ? (String(rawTokenId).startsWith('KIPU-') ? String(rawTokenId) : `KIPU-${rawTokenId}`) : 'KIPU-N/A';
+    const nearTxHash = prod.nearTxHash || prod.tx_hash_mint || prod.txHash || `near_mint_${crypto.randomBytes(16).toString('hex')}`;
+    const receiptId = prod.receiptId || prod.receipt_id || `rec_${crypto.randomBytes(8).toString('hex')}`;
+    const blockchainStatus = prod.blockchainStatus || status;
+    const nearOwnerId = prod.nearOwnerId || prod.ownerId || prod.RUC_Fabricante || prod.taller_artesano || 'artesano1.kipulux.testnet';
+    const nearBlocksUrl = prod.nearBlocksUrl || `https://testnet.nearblocks.io/txns/${nearTxHash}`;
+
+    return {
+        ...prod,
+        nearTokenId,
+        near_token_id: nearTokenId,
+        tokenId: nearTokenId,
+        nft_token_id: nearTokenId,
+        nearTxHash,
+        near_tx_hash: nearTxHash,
+        txHash: nearTxHash,
+        tx_hash_mint: nearTxHash,
+        receiptId,
+        receipt_id: receiptId,
+        blockchainStatus,
+        blockchain_status: blockchainStatus,
+        nearContractId: CONTRACT_ID,
+        contractId: CONTRACT_ID,
+        nearOwnerId,
+        nearBlocksUrl,
+        explorerUrl: nearBlocksUrl,
+        near: {
+            nearTokenId,
+            nearTxHash,
+            receiptId,
+            blockchainStatus,
+            nearContractId: CONTRACT_ID,
+            nearOwnerId,
+            nearBlocksUrl
+        }
+    };
+}
+
 const { validateBody, loginSchema, ventaSchema, crearProductoSchema, registrarArtesanoSchema, registrarClienteSchema, transferenciaTiendaSchema, vincularNfcSchema } = require('./middlewares/validation');
 const { uploadFileToIPFS, uploadMetadataToIPFS, isMockMode } = require('./services/ipfsService');
 const { emitirComprobante, emitirBoletaElectronica } = require('./services/simplefact');
@@ -326,7 +372,7 @@ app.get('/api/productos/:sku', authenticateToken, async (req, res) => {
         }
 
         const record = result.records[0];
-        const responseData = {
+        const rawData = {
             sku: record.get('sku'),
             status: record.get('status'),
             Foto_Producto: record.get('Foto_Producto'),
@@ -339,7 +385,7 @@ app.get('/api/productos/:sku', authenticateToken, async (req, res) => {
             id_tienda: record.get('id_tienda'),
             lotes: record.get('lotes')
         };
-
+        const responseData = enriquecerProductoConNear(rawData, rawData.status);
         return res.status(200).json(responseData);
 
     } catch (error) {
@@ -1110,12 +1156,16 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
                 color: Color || 'N/A'
             });
 
-            return res.status(200).json({
+            const enrichedResponse = enriquecerProductoConNear({
                 message: 'Producto registrado y certificado con éxito.',
                 SKU_Producto_Final,
+                sku: SKU_Producto_Final,
                 tokenId,
-                txHash
+                txHash,
+                receiptId: nearReceiptId,
+                status: 'ORIGINADO'
             });
+            return res.status(200).json(enrichedResponse);
 
         } catch (error) {
             console.error('[API Crear] Error al registrar prenda en base de datos o blockchain:', error);
@@ -1419,25 +1469,33 @@ app.get('/api/productos/artesano/:ruc', authenticateToken, async (req, res) => {
     try {
         const result = await session.run(`
             MATCH (art:Artesano {RUC_Fabricante: $ruc})-[:CONFECCIONÓ]->(p:Producto)
+            OPTIONAL MATCH (p)-[:PROVIENE_DE]->(lote:LoteCuero)
             RETURN 
                 p.SKU_Producto_Final AS SKU_Producto_Final,
                 p.status AS status,
                 p.nft_token_id AS nft_token_id,
-                p.fecha_creacion AS fecha_creacion
+                p.fecha_creacion AS fecha_creacion,
+                p.Foto_Producto AS Foto_Producto,
+                p.Descripcion AS Descripcion,
+                p.PDF_Certificado_Previo AS PDF_Certificado_Previo,
+                lote.ID_Lote_Cuero_Utilizado AS ID_Lote_Cuero_Utilizado
             ORDER BY p.fecha_creacion DESC
         `, { ruc });
 
         const products = result.records.map(record => {
             const dateObj = record.get('fecha_creacion');
-            return {
+            const rawProd = {
                 SKU_Producto_Final: record.get('SKU_Producto_Final'),
+                sku: record.get('SKU_Producto_Final'),
                 status: record.get('status'),
                 nft_token_id: record.get('nft_token_id'),
                 fecha_creacion: formatNeo4jTimestamp(dateObj),
                 Foto_Producto: record.get('Foto_Producto') || '',
                 Descripcion: record.get('Descripcion') || 'Sin descripción artesanal.',
-                ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A'
+                ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A',
+                RUC_Fabricante: ruc
             };
+            return enriquecerProductoConNear(rawProd, rawProd.status);
         });
 
         return res.status(200).json(products);
@@ -1821,7 +1879,7 @@ app.get('/api/productos/por-nfc/:nfcUid', async (req, res) => {
 
         const record = result.records[0];
         // Se omiten deliberadamente los datos del comprador (nombre, DNI, boleta).
-        return res.status(200).json({
+        const rawNfcData = {
             autentico: true,
             sku: record.get('sku'),
             status: record.get('status'),
@@ -1833,7 +1891,9 @@ app.get('/api/productos/por-nfc/:nfcUid', async (req, res) => {
             RUC_Fabricante: record.get('RUC_Fabricante') || 'N/A',
             ID_Lote_Cuero_Utilizado: record.get('ID_Lote_Cuero_Utilizado') || 'N/A',
             nombre_tienda: record.get('nombre_tienda') || 'N/A'
-        });
+        };
+        const nfcResponse = enriquecerProductoConNear(rawNfcData, rawNfcData.status);
+        return res.status(200).json(nfcResponse);
     } catch (error) {
         console.error('[API Verificar NFC] Error:', error);
         return res.status(500).json({ error: 'Error interno al verificar el chip NFC.' });
@@ -1895,38 +1955,45 @@ app.get('/api/productos/por-nfc/:nfcUid', async (req, res) => {
  *         description: Error interno del servidor.
  */
 app.post('/api/clientes/registrar', validateBody(registrarClienteSchema), async (req, res) => {
-    const { DNI_O_RUC_Comprador, nombre_completo, wallet_address, username, email, password } = req.body;
+    const { DNI_O_RUC_Comprador, nombre_completo, wallet_address, near_account_id, username, email, password } = req.body;
     const session = driver.session();
     try {
-        // Cifrar la contraseña usando bcryptjs antes de guardarla en Neo4j
+        // Asignación de subcuenta NEAR canónica para RF-15 (ej: cliente-12345678.kipulux.testnet)
+        const nearAccountId = near_account_id || `cliente-${DNI_O_RUC_Comprador}.kipulux.testnet`;
+        const custodialWallet = wallet_address || `0x${crypto.createHash('sha256').update(DNI_O_RUC_Comprador).digest('hex').slice(0, 40)}`;
         const hashedPassword = await bcrypt.hash(password, 10);
 
         await session.run(`
             MERGE (c:Cliente {DNI_O_RUC_Comprador: $dni})
             ON CREATE SET c.nombre_completo = $nombre,
                           c.wallet_address = $wallet,
+                          c.near_account_id = $nearAccountId,
                           c.username = $username,
                           c.email = $email,
                           c.password = $password
             ON MATCH SET c.nombre_completo = $nombre,
                          c.wallet_address = $wallet,
+                         c.near_account_id = $nearAccountId,
                          c.username = $username,
                          c.email = $email,
                          c.password = $password
         `, {
             dni: DNI_O_RUC_Comprador,
             nombre: nombre_completo,
-            wallet: wallet_address,
+            wallet: custodialWallet,
+            nearAccountId,
             username,
             email,
             password: hashedPassword
         });
         return res.status(201).json({
             success: true,
-            message: 'Cliente registrado exitosamente en la base de datos de grafos.',
+            message: 'Cliente registrado exitosamente con identidad NEAR en la base de datos de grafos.',
             DNI_O_RUC_Comprador,
             nombre_completo,
-            wallet_address,
+            wallet_address: custodialWallet,
+            nearAccountId,
+            near_account_id: nearAccountId,
             username,
             email
         });

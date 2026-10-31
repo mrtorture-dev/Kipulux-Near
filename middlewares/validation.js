@@ -111,8 +111,10 @@ const registrarClienteSchema = z.object({
     nombre_completo: z.string()
         .min(3, { message: 'El nombre completo debe tener al menos 3 caracteres.' }),
     wallet_address: z.string()
-        .length(42, { message: 'La dirección de wallet debe tener exactamente 42 caracteres de longitud.' })
-        .regex(/^0x[0-9a-fA-F]{40}$/, { message: 'La wallet debe ser un formato EVM válido que inicie con 0x y contenga caracteres hexadecimales.' }),
+        .optional()
+        .or(z.literal('')),
+    near_account_id: z.string()
+        .optional(),
     username: z.string()
         .min(3, { message: 'El username debe tener al menos 3 caracteres.' }),
     email: z.string()
