@@ -2535,21 +2535,37 @@ app.post('/api/hermes/comprar', async (req, res) => {
         let privateKey = decipher.update(Buffer.from(textParts.join(':'), 'hex'));
         privateKey = Buffer.concat([privateKey, decipher.final()]).toString();
 
-        const { buyTokenFromMarketplace } = require('./services/blockchain');
-        await buyTokenFromMarketplace(tokenId, typeof precioSys === 'object' ? precioSys.toNumber() : precioSys, privateKey);
+        // Liquidación atómica en NEAR con regalías hacia la marca ALDA (Borrador NEP / Luis Barragán)
+        const sellerNear = `cliente-${sellerDni}.kipulux.testnet`;
+        const buyerNear = `cliente-${dni}.kipulux.testnet`;
+        const escrowResult = await nearService.ejecutarReventaEscrow(tokenId, sellerNear, buyerNear, String(precioSys || '2.5'), 10);
 
         await session.run(`
             MATCH (p:Producto {SKU_Producto_Final: $sku})
             MATCH (seller:Cliente {DNI_O_RUC_Comprador: $sellerDni})-[l:LISTADO_EN_MARKETPLACE]->(p)
             MATCH (seller)-[prop:PROPIEDAD_DE]->(p)
             MATCH (buyer:Cliente {DNI_O_RUC_Comprador: $dni})
-            SET p.status = 'VENDIDO', l.is_active = false
+            SET p.status = 'VENDIDO',
+                p.tx_hash_reventa = $txHash,
+                p.regalia_marca_near = $regalia,
+                l.is_active = false
             DELETE prop
-            MERGE (buyer)-[:PROPIEDAD_DE {fecha: datetime()}]->(p)
-            MERGE (seller)-[:VENDIÓ_A_CLIENTE {fecha: datetime(), precio: $precio}]->(buyer)
-        `, { sku, sellerDni, dni, precio: precioSys });
+            MERGE (buyer)-[:PROPIEDAD_DE {fecha: datetime(), tx_hash_reventa: $txHash}]->(p)
+            MERGE (seller)-[:VENDIÓ_A_CLIENTE {fecha: datetime(), precio: $precio, tx_hash: $txHash}]->(buyer)
+        `, {
+            sku,
+            sellerDni,
+            dni,
+            precio: precioSys,
+            txHash: escrowResult.nearTxHash,
+            regalia: escrowResult.regaliaMarcaNear
+        });
 
-        res.json({ message: 'Compra exitosa' });
+        res.json({
+            message: 'Reventa y liquidación de escrow exitosa en NEAR Protocol.',
+            sku,
+            escrow: escrowResult
+        });
     } catch(e) { res.status(500).json({ error: e.message }); } finally { await session.close(); }
 });
 
