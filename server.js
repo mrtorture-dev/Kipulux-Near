@@ -131,18 +131,14 @@ const allowedOrigins = originsSource
 
 console.log('[CORS] Configuración de Orígenes Permitidos:', allowedOrigins);
 
+// CORS TOTALMENTE PERMISIVO (Bypass para desarrollo local, app móvil, iframe y frontend)
 app.use(cors({
-  origin: function (origin, callback) {
-    const sanitizedOrigin = origin ? origin.trim().replace(/\/$/, '') : '';
-    // Permitir si no hay origen (ej. curl, Postman), si contiene wildcard '*', si está en allowedOrigins, o si no estamos en producción
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(sanitizedOrigin) || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      callback(new Error('Acceso denegado por políticas de seguridad CORS'));
-    }
-  },
-  credentials: true
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+app.options('*', cors());
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
