@@ -800,12 +800,16 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 });
 
 app.get('/api/clientes/perfil', authenticateToken, async (req, res) => {
-    const dni = req.user.DNI_O_RUC;
+    const dni = String(req.user?.DNI_O_RUC || req.user?.dni_o_ruc || '').trim();
+    const username = String(req.user?.username || '').trim();
     const session = driver.session();
     try {
         let result = await session.run(`
-            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})
-            OPTIONAL MATCH (c)<-[:PROPIEDAD_DE]-(p:Producto)
+            MATCH (c:Cliente)
+            WHERE ($dni <> '' AND c.DNI_O_RUC_Comprador = $dni)
+               OR ($username <> '' AND (c.username = $username OR c.email = $username))
+            OPTIONAL MATCH (p:Producto)
+            WHERE (p)-[:PROPIEDAD_DE]->(c) OR (c)-[:PROPIEDAD_DE]->(p)
             RETURN c.nombre_completo AS nombre,
                    c.DNI_O_RUC_Comprador AS dni,
                    c.username AS username,
@@ -813,54 +817,35 @@ app.get('/api/clientes/perfil', authenticateToken, async (req, res) => {
                    c.wallet_address AS wallet,
                    c.near_account_id AS near_account_id,
                    count(p) AS total_compras
-        `, { dni });
-
-        if (result.records.length === 0) {
-            result = await session.run(`
-                MATCH (c:Cliente)
-                WHERE c.username = $dni OR c.email = $dni
-                OPTIONAL MATCH (c)<-[:PROPIEDAD_DE]-(p:Producto)
-                RETURN c.nombre_completo AS nombre,
-                       c.DNI_O_RUC_Comprador AS dni,
-                       c.username AS username,
-                       c.email AS email,
-                       c.wallet_address AS wallet,
-                       c.near_account_id AS near_account_id,
-                       count(p) AS total_compras
-                LIMIT 1
-            `, { dni });
-        }
+            LIMIT 1
+        `, { dni, username });
 
         if (result.records.length === 0) {
             return res.status(200).json({
-                nombre: req.user.nombre || 'Cliente Registrado',
-                dni: dni,
-                username: req.user.username || '',
-                email: req.user.email || '',
-                wallet: `cliente-${dni}.kipulux.testnet`,
-                near_account_id: `cliente-${dni}.kipulux.testnet`,
-                certificacion_kipulux: 'KIPULUX-VERIFIED-COLLECTOR',
+                nombre: username || 'Cliente KipuLux',
+                dni: dni || 's/n',
+                username: username || 'cliente',
+                email: req.user?.email || `${username || 'cliente'}@kipulux.pe`,
+                wallet: req.user?.near_account_id || `cliente-${dni || '11345678'}.kipulux.testnet`,
+                near_account_id: req.user?.near_account_id || `cliente-${dni || '11345678'}.kipulux.testnet`,
                 total_compras: 0
             });
         }
 
-        const r = result.records[0];
-        const rawCount = r.get('total_compras');
-        const total = rawCount && typeof rawCount.toNumber === 'function' ? rawCount.toNumber() : Number(rawCount || 0);
-
+        const record = result.records[0];
+        const clientDni = record.get('dni') || dni;
         return res.status(200).json({
-            nombre: r.get('nombre') || 'Cliente Verificado',
-            dni: r.get('dni') || dni,
-            username: r.get('username') || '',
-            email: r.get('email') || '',
-            wallet: r.get('wallet') || '',
-            near_account_id: r.get('near_account_id') || `cliente-${dni}.kipulux.testnet`,
-            certificacion_kipulux: 'KIPULUX-VERIFIED-COLLECTOR',
-            total_compras: total
+            nombre: record.get('nombre') || username || 'Cliente KipuLux',
+            dni: clientDni,
+            username: record.get('username') || username,
+            email: record.get('email') || `${username}@kipulux.pe`,
+            wallet: record.get('wallet') || record.get('near_account_id') || `cliente-${clientDni}.kipulux.testnet`,
+            near_account_id: record.get('near_account_id') || `cliente-${clientDni}.kipulux.testnet`,
+            total_compras: record.get('total_compras')?.toNumber ? record.get('total_compras').toNumber() : Number(record.get('total_compras') || 0)
         });
     } catch (err) {
-        console.error('[API Perfil Cliente] Error:', err);
-        return res.status(500).json({ error: 'Error al consultar perfil del cliente.' });
+        console.error('[API /api/clientes/perfil] Error:', err);
+        return res.status(500).json({ error: 'Error interno al consultar perfil de cliente.' });
     } finally {
         await session.close();
     }
@@ -2346,14 +2331,17 @@ app.post('/api/tiendas/registrar-artesano', authenticateToken, validateBody(regi
  *         description: Error de consulta.
  */
 app.get('/api/clientes/historial-compras', authenticateToken, async (req, res) => {
-    const dniComprador = req.user.DNI_O_RUC;
-    const userIdentifier = req.user.username;
+    const dniComprador = String(req.user?.DNI_O_RUC || req.user?.dni_o_ruc || '').trim();
+    const userIdentifier = String(req.user?.username || req.user?.email || '').trim();
 
     const session = driver.session();
     try {
+        console.log(`[API Historial] Consultando compras para usuario: "${userIdentifier}", DNI: "${dniComprador}"`);
+
         const query = `
             MATCH (c:Cliente)
-            WHERE c.DNI_O_RUC_Comprador = $dni OR c.username = $username
+            WHERE ($dni <> '' AND c.DNI_O_RUC_Comprador = $dni)
+               OR ($username <> '' AND (c.username = $username OR c.email = $username))
             MATCH (p:Producto)
             WHERE (p)-[:PROPIEDAD_DE]->(c) OR (c)-[:PROPIEDAD_DE]->(p)
             OPTIONAL MATCH (t:Tienda)-[:VENDIÓ]->(p)
@@ -2369,18 +2357,22 @@ app.get('/api/clientes/historial-compras', authenticateToken, async (req, res) =
                    }) AS productos
         `;
 
-        const result = await session.run(query, { dni: dniComprador, username: userIdentifier || dniComprador });
+        const result = await session.run(query, {
+            dni: dniComprador,
+            username: userIdentifier
+        });
 
         const history = result.records.map(record => ({
             id_tienda: record.get('id_tienda'),
             nombre_tienda: record.get('nombre_tienda'),
             productos: record.get('productos')
-        }));
+        })).filter(h => h.productos && h.productos.length > 0);
 
+        console.log(`[API Historial] Encontrados ${history.length} grupos de productos para ${userIdentifier || dniComprador}.`);
         return res.status(200).json(history);
     } catch (error) {
         console.error('[API Historial] Error al consultar compras:', error);
-        return res.status(500).json({ error: 'Error interno al consultar historial de compras.' });
+        return res.status(500).json({ error: 'Error interno al consultar historial de compras.', details: error.message });
     } finally {
         await session.close();
     }
@@ -2455,14 +2447,14 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
         const custodialWallet = '0x' + crypto.createHash('sha256').update(targetDni).digest('hex').slice(0, 40);
 
         await session.run(`
-            MERGE (d:Cliente {DNI_O_RUC_Comprador: $targetDni})
-            ON CREATE SET d.username = $targetUser,
+            MERGE (d:Cliente {username: $targetUser})
+            ON CREATE SET d.DNI_O_RUC_Comprador = $targetDni,
                           d.nombre_completo = $targetNombre,
                           d.password = $password,
                           d.email = $email,
                           d.near_account_id = $buyerNear,
                           d.wallet_address = $custodialWallet
-            ON MATCH SET d.username = $targetUser,
+            ON MATCH SET d.DNI_O_RUC_Comprador = $targetDni,
                          d.near_account_id = $buyerNear
         `, {
             targetDni,
@@ -2493,7 +2485,8 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
         // 4. Actualizar propiedad en Neo4j de forma atómica
         await session.run(`
             MATCH (p:Producto {SKU_Producto_Final: $sku})
-            MATCH (buyer:Cliente {DNI_O_RUC_Comprador: $targetDni})
+            MATCH (buyer:Cliente)
+            WHERE buyer.username = $targetUser OR buyer.DNI_O_RUC_Comprador = $targetDni
             OPTIONAL MATCH (p)-[r1:PROPIEDAD_DE]->(:Cliente)
             OPTIONAL MATCH (:Cliente)-[r2:PROPIEDAD_DE]->(p)
             OPTIONAL MATCH (p)-[r3:ENTREGADO_A]->(:Tienda)
