@@ -1060,7 +1060,8 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">SKU Producto Final</label>
-                                        <input type="text" name="SKU_Producto_Final" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="ej: KIPU-CUERO-001">
+                                        <input type="text" name="SKU_Producto_Final" id="input-vender-sku" list="tienda-custodia-sku-list" required class="w-full bg-neutral-950 border border-neutral-850 rounded-lg px-3 py-3 text-base md:text-sm text-neutral-200 focus:outline-none focus:border-gold-500 min-h-[44px]" placeholder="Seleccionar o escribir SKU">
+                                        <datalist id="tienda-custodia-sku-list"></datalist>
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">DNI/RUC del Comprador</label>
@@ -1091,6 +1092,28 @@
                                     Certificar Venta y Registrar Propiedad
                                 </button>
                             </form>
+                    </div>
+
+                    <!-- MÓDULO DE INVENTARIO EN CUSTODIA B2B -->
+                    <div class="glass-panel rounded-2xl p-6 space-y-6 mt-8">
+                        <div class="border-b border-neutral-900 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <div>
+                                <h4 class="title-serif text-lg font-semibold text-neutral-100 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-gold-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                                    Prendas Recibidas en Custodia (Despachadas por Talleres)
+                                </h4>
+                                <p class="text-xs text-neutral-400 mt-1">Prendas entregadas por artesanos listas para certificar y vender a clientes finales.</p>
+                            </div>
+                            <button type="button" onclick="loadTiendaCustodia()" class="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-4 rounded-lg text-xs transition uppercase tracking-wider active:scale-95 flex items-center justify-center gap-1.5 self-start sm:self-auto">
+                                <svg class="w-3.5 h-3.5 inline-block mr-1 text-[#B08D2F]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Actualizar Inventario
+                            </button>
+                        </div>
+                        <div id="tienda-custodia-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Injected dynamically -->
+                        </div>
+                        <div id="tienda-custodia-empty" class="hidden text-center py-8 text-neutral-500 text-xs">
+                            No tienes prendas en custodia pendientes de venta. Cuando un artesano te despache prendas desde su panel, aparecerán aquí automáticamente.
+                        </div>
                     </div>
 
                     <!-- Módulo de WooCommerce Dashboard -->
@@ -2279,6 +2302,7 @@
                 fetchClientPurchases();
             } else if (tabId === 'tienda') {
                 loadAdminDashboard();
+                loadTiendaCustodia();
             } else if (tabId === 'artesano') {
                 setupDraftListeners();
                 loadDraft();
@@ -2973,6 +2997,89 @@
             // Hacer scroll hasta el formulario
             document.getElementById('form-vender-producto').scrollIntoView({ behavior: 'smooth' });
         }
+
+        async function loadTiendaCustodia() {
+            const token = localStorage.getItem('accessToken');
+            const grid = document.getElementById('tienda-custodia-grid');
+            const empty = document.getElementById('tienda-custodia-empty');
+            const dataList = document.getElementById('tienda-custodia-sku-list');
+            if (!grid) return;
+
+            grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-neutral-500"><svg class="h-5 w-5 animate-spin mx-auto text-gold-500 mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Cargando prendas en custodia...</div>';
+            if (empty) empty.classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/tiendas/custodia`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('No se pudo cargar el inventario.');
+                const products = await res.json();
+
+                grid.innerHTML = '';
+                if (dataList) dataList.innerHTML = '';
+
+                if (products.length === 0) {
+                    if (empty) empty.classList.remove('hidden');
+                    return;
+                }
+
+                products.forEach(p => {
+                    if (dataList) {
+                        const opt = document.createElement('option');
+                        opt.value = p.sku;
+                        opt.textContent = `${p.sku} | ${p.Descripcion || p.status}`;
+                        dataList.appendChild(opt);
+                    }
+
+                    const isSold = p.status === 'VENDIDO';
+                    const card = document.createElement('div');
+                    card.className = "bg-neutral-900/60 border border-neutral-800 rounded-xl p-4 flex flex-col justify-between space-y-3 hover:border-gold-500/40 transition-all";
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <img src="${resolveIpfsUri(p.Foto_Producto, p.sku) || LUXURY_PLACEHOLDER_SVG}" class="w-14 h-14 rounded-lg object-cover border border-neutral-800" onerror="if(this.src!=='${LUXURY_PLACEHOLDER_SVG}'){this.src='${LUXURY_PLACEHOLDER_SVG}';}">
+                            <div class="overflow-hidden">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-white text-xs truncate">${p.sku}</span>
+                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isSold ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'} uppercase">${p.status}</span>
+                                </div>
+                                <p class="text-[10px] text-neutral-400 truncate mt-0.5">${p.taller_artesano || 'Taller Artesano'}</p>
+                                <p class="text-[9px] font-mono text-neutral-500 truncate">${p.Coleccion || 'Clásica'} • ${p.Color || 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 pt-1 border-t border-neutral-850">
+                            ${!isSold ? `
+                                <button onclick="seleccionarSkuParaVenta('${p.sku}')" class="flex-1 bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold py-1.5 px-2 rounded text-[10px] uppercase tracking-wider transition active:scale-95 flex items-center justify-center gap-1">
+                                    <span>Vender a Cliente</span>
+                                </button>
+                            ` : `
+                                <span class="flex-1 text-center py-1 text-[10px] text-emerald-400 font-semibold">Propiedad Certificada</span>
+                            `}
+                            <button onclick="searchSkuDirect('${p.sku}')" class="bg-neutral-950 hover:bg-neutral-850 border border-neutral-800 text-gold-500 py-1.5 px-2.5 rounded text-[10px] uppercase font-semibold transition">
+                                Trazabilidad
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                grid.innerHTML = `<div class="col-span-full py-4 text-center text-xs text-rose-400">Error: ${err.message}</div>`;
+            }
+        }
+
+        window.loadTiendaCustodia = loadTiendaCustodia;
+
+        window.seleccionarSkuParaVenta = function(sku) {
+            const input = document.getElementById('input-vender-sku');
+            if (input) {
+                input.value = sku;
+                input.classList.add('ring-2', 'ring-gold-500');
+                setTimeout(() => input.classList.remove('ring-2', 'ring-gold-500'), 1500);
+                const dniInput = document.querySelector('[name="DNI_O_RUC_Comprador"]');
+                if (dniInput) dniInput.focus();
+                showToast('info', 'Prenda Seleccionada', `SKU ${sku} cargado en el formulario de venta.`);
+                document.getElementById('form-vender-producto').scrollIntoView({ behavior: 'smooth' });
+            }
+        };
 
         window.loadAdminDashboard = loadAdminDashboard;
 

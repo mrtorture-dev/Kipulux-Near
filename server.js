@@ -2203,6 +2203,56 @@ app.post('/api/clientes/registrar', validateBody(registrarClienteSchema), async 
  *       500:
  *         description: Error interno del servidor.
  */
+
+// ==========================================
+// E1.2) ENDPOINT INVENTARIO EN CUSTODIA TIENDA (GET /api/tiendas/custodia)
+// ==========================================
+app.get('/api/tiendas/custodia', authenticateToken, async (req, res) => {
+    const tiendaId = req.user.DNI_O_RUC;
+    const session = driver.session();
+    try {
+        const query = `
+            MATCH (p:Producto)-[:ENTREGADO_A]->(t:Tienda)
+            WHERE t.id_tienda = $tiendaId OR t.username = $tiendaId
+            OPTIONAL MATCH (art:Artesano)-[:CONFECCIONÓ]->(p)
+            RETURN 
+                p.SKU_Producto_Final AS sku,
+                p.status AS status,
+                p.Foto_Producto AS Foto_Producto,
+                p.PDF_Certificado_Previo AS PDF_Certificado_Previo,
+                p.nft_token_id AS nft_token_id,
+                p.tx_hash_mint AS tx_hash_mint,
+                p.Descripcion AS Descripcion,
+                p.Coleccion AS Coleccion,
+                p.Color AS Color,
+                coalesce(art.nombre_taller, 'Taller Artesano') AS taller_artesano,
+                coalesce(art.RUC_Fabricante, 'N/A') AS ruc_artesano
+            ORDER BY p.fecha_creacion DESC
+        `;
+        const result = await session.run(query, { tiendaId });
+        const products = result.records.map(record => enriquecerProductoConNear({
+            sku: record.get('sku'),
+            SKU_Producto_Final: record.get('sku'),
+            status: record.get('status'),
+            Foto_Producto: record.get('Foto_Producto'),
+            PDF_Certificado_Previo: record.get('PDF_Certificado_Previo'),
+            nft_token_id: record.get('nft_token_id'),
+            tx_hash_mint: record.get('tx_hash_mint'),
+            Descripcion: record.get('Descripcion'),
+            Coleccion: record.get('Coleccion'),
+            Color: record.get('Color'),
+            taller_artesano: record.get('taller_artesano'),
+            ruc_artesano: record.get('ruc_artesano')
+        }));
+        return res.status(200).json(products);
+    } catch (err) {
+        console.error('[API Tienda Custodia] Error:', err);
+        return res.status(500).json({ error: 'Error al consultar inventario en custodia.' });
+    } finally {
+        await session.close();
+    }
+});
+
 app.post('/api/tiendas/registrar-artesano', authenticateToken, validateBody(registrarArtesanoSchema), async (req, res) => {
     const { RUC_Fabricante, nombre_taller, email, ubigeo } = req.body;
     const tiendaRuc = req.user.DNI_O_RUC;
