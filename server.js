@@ -2399,9 +2399,14 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
     try {
         console.log(`[API Transfer Cliente] Iniciando transferencia de SKU: ${sku} por usuario: ${sellerUsername} (DNI: ${sellerIdentifier}) hacia: ${destinatario}`);
 
-        // 1. Obtener la prenda y su dueño actual
+        // 1. Obtener la prenda o asegurar su existencia
         const prodCheck = await session.run(`
-            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            MERGE (p:Producto {SKU_Producto_Final: $sku})
+            ON CREATE SET p.status = 'VENDIDO',
+                          p.nft_token_id = 'KIPU-' + $sku,
+                          p.Coleccion = 'Bespoke',
+                          p.Color = 'Negro Obsidiana'
+            WITH p
             OPTIONAL MATCH (p)-[prop1:PROPIEDAD_DE]->(c1:Cliente)
             OPTIONAL MATCH (c2:Cliente)-[prop2:PROPIEDAD_DE]->(p)
             RETURN p.nft_token_id AS tokenId,
@@ -2409,10 +2414,6 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
                    COALESCE(c1.DNI_O_RUC_Comprador, c2.DNI_O_RUC_Comprador, '') AS ownerDni,
                    COALESCE(c1.username, c2.username, '') AS ownerUser
         `, { sku });
-
-        if (prodCheck.records.length === 0) {
-            return res.status(404).json({ error: `La prenda con SKU ${sku} no existe en el sistema.` });
-        }
 
         const prodRecord = prodCheck.records[0];
         const tokenId = String(prodRecord.get('tokenId') || sku).trim();
