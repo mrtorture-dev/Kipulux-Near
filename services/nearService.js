@@ -84,6 +84,13 @@ async function mintAuthorized(artesanoId, sku, tokenUri, extraMeta = {}) {
     const tokenId = sku.startsWith('KIPU-') ? sku : `KIPU-${sku}`;
     console.log(`[NEAR Relayer] Iniciando mint_authorized para SKU: ${sku}, TokenId: ${tokenId}`);
 
+    function sanitizarAccountId(accId) {
+        if (!accId) return RELAYER_ACCOUNT_ID;
+        const str = String(accId).trim().toLowerCase();
+        if (str.endsWith('.testnet') || str.endsWith('.near')) return str;
+        return RELAYER_ACCOUNT_ID;
+    }
+
     try {
         const client = await initNear();
 
@@ -96,7 +103,7 @@ async function mintAuthorized(artesanoId, sku, tokenUri, extraMeta = {}) {
                 methodName: 'mint_authorized',
                 args: {
                     token_id: tokenId,
-                    receiver_id: artesanoId || RELAYER_ACCOUNT_ID,
+                    receiver_id: sanitizarAccountId(artesanoId),
                     token_metadata: {
                         title: `Pasaporte Digital ${sku}`,
                         description: extraMeta.descripcion || 'Pasaporte Digital de Origen KipuLux verificado en NEAR Protocol.',
@@ -168,7 +175,7 @@ async function transferirCustodia(tokenId, tiendaId) {
                 methodName: 'transferir_custodia',
                 args: {
                     token_id: tokenId,
-                    nueva_tienda: tiendaId
+                    nueva_tienda: (tiendaId && (tiendaId.endsWith('.testnet') || tiendaId.endsWith('.near'))) ? tiendaId : RELAYER_ACCOUNT_ID
                 },
                 gas: BigInt('150000000000000'), // 150 TGas
                 deposit: BigInt('1') // 1 yoctoNEAR
@@ -222,7 +229,7 @@ async function registrarVenta(tokenId, compradorAccount, facturaXmlHash, numeroB
                 methodName: 'registrar_venta',
                 args: {
                     token_id: tokenId,
-                    comprador: compradorAccount || RELAYER_ACCOUNT_ID,
+                    comprador: (compradorAccount && (compradorAccount.endsWith('.testnet') || compradorAccount.endsWith('.near'))) ? compradorAccount : RELAYER_ACCOUNT_ID,
                     hash_sunat: facturaXmlHash,
                     numero_boleta: numeroBoleta
                 },

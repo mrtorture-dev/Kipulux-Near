@@ -20,7 +20,7 @@ const nearService = require('./services/nearService');
 // HELPER: NORMALIZAR RESPUESTA DE PRODUCTO CON CAMPOS NEAR (RF-08 / RF-09 / CONTRATO APP)
 // ==========================================
 function enriquecerProductoConNear(prod, defaultStatus = 'ORIGINADO') {
-    const CONTRACT_ID = process.env.NEAR_CONTRACT_NAME || 'kipulux-8a0762.testnet';
+    const CONTRACT_ID = process.env.NEAR_CONTRACT_NAME || 'kipulux-8046af.testnet';
     const status = prod.status || defaultStatus;
     const rawTokenId = prod.nft_token_id || prod.nearTokenId || prod.tokenId || prod.sku || prod.SKU_Producto_Final;
     const nearTokenId = rawTokenId ? (String(rawTokenId).startsWith('KIPU-') ? String(rawTokenId) : `KIPU-${rawTokenId}`) : 'KIPU-N/A';
