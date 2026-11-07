@@ -581,6 +581,73 @@
             </div>
         </div>
 
+        <!-- MODAL TRANSFERENCIA CLIENTE P2P (NEAR PROTOCOL) -->
+        <div id="modal-transferir-cliente" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 border border-neutral-200 shadow-2xl relative space-y-5 text-[#1B3A5F]">
+                <!-- Header -->
+                <div class="border-b border-neutral-100 pb-3 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-serif text-lg font-bold text-[#1B3A5F] flex items-center gap-2">
+                            <svg class="w-5 h-5 text-[#B08D2F]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            <span>Transferir Pasaporte Digital</span>
+                        </h3>
+                        <p class="text-xs text-neutral-500 mt-0.5">Transferencia P2P en NEAR Protocol a otro coleccionista.</p>
+                    </div>
+                    <button type="button" onclick="closeClientTransferModal()" class="text-neutral-400 hover:text-neutral-700 p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="space-y-4">
+                    <div class="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 text-xs space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <span class="text-neutral-500">Prenda a Transferir:</span>
+                            <span id="modal-transfer-sku" class="font-mono font-bold text-[#1B3A5F] bg-[#D9B65A]/20 px-2.5 py-0.5 rounded border border-[#B08D2F]/40"></span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
+                            <span>Red Blockchain:</span>
+                            <span class="font-bold text-emerald-700 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                NEAR Testnet (On-Chain)
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-neutral-600 uppercase tracking-wider mb-1.5">
+                            Usuario o DNI Destinatario
+                        </label>
+                        <input type="text" id="modal-transfer-destinatario" class="w-full bg-white border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-[#1B3A5F]" placeholder="Ej: demo_2 o 22345678">
+                        
+                        <!-- Quick buttons -->
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="text-[10px] text-neutral-400">Atajo demo:</span>
+                            <button type="button" onclick="document.getElementById('modal-transfer-destinatario').value='demo_2'" class="text-[11px] font-semibold bg-[#1B3A5F]/10 hover:bg-[#1B3A5F]/20 text-[#1B3A5F] px-2.5 py-1 rounded-md border border-[#1B3A5F]/20 transition">
+                                demo_2 (DNI: 22345678)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50/80 border border-amber-200/80 p-3 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                        <svg class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Al confirmar, la propiedad del NFT se transferirá en NEAR Protocol a la subcuenta <code class="font-mono font-bold">cliente-[DNI].kipulux.testnet</code> y la prenda se mostrará en su colección.</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex justify-end gap-2.5 pt-3 border-t border-neutral-100">
+                    <button type="button" onclick="closeClientTransferModal()" class="px-4 py-2 rounded-lg border border-neutral-300 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btn-submit-client-transfer" onclick="executeClientTransfer()" class="px-4 py-2 rounded-lg bg-[#B08D2F] hover:bg-[#977826] text-neutral-950 font-bold text-xs transition flex items-center gap-1.5 shadow-md">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        <span>Confirmar Transferencia NEAR</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL DE CONFIRMACIÓN DE MINT / REGISTRO -->
         <div id="modal-confirmacion-prenda" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
             <div class="bg-white rounded-2xl w-full max-w-md p-6 border border-neutral-200 shadow-2xl relative space-y-6 text-[#1B3A5F]">
@@ -633,6 +700,73 @@
                     </button>
                     <button type="button" id="btn-confirm-proceder" onclick="executeCrearProducto()" class="px-5 py-2.5 rounded-lg bg-[#1B3A5F] text-[#F2EFE9] text-xs font-bold hover:bg-[#12294A] transition flex items-center justify-center gap-1.5 shadow-md min-h-[44px]">
                         Confirmar y Registrar Pasaporte
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL TRANSFERENCIA CLIENTE P2P (NEAR PROTOCOL) -->
+        <div id="modal-transferir-cliente" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 border border-neutral-200 shadow-2xl relative space-y-5 text-[#1B3A5F]">
+                <!-- Header -->
+                <div class="border-b border-neutral-100 pb-3 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-serif text-lg font-bold text-[#1B3A5F] flex items-center gap-2">
+                            <svg class="w-5 h-5 text-[#B08D2F]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            <span>Transferir Pasaporte Digital</span>
+                        </h3>
+                        <p class="text-xs text-neutral-500 mt-0.5">Transferencia P2P en NEAR Protocol a otro coleccionista.</p>
+                    </div>
+                    <button type="button" onclick="closeClientTransferModal()" class="text-neutral-400 hover:text-neutral-700 p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="space-y-4">
+                    <div class="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 text-xs space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <span class="text-neutral-500">Prenda a Transferir:</span>
+                            <span id="modal-transfer-sku" class="font-mono font-bold text-[#1B3A5F] bg-[#D9B65A]/20 px-2.5 py-0.5 rounded border border-[#B08D2F]/40"></span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
+                            <span>Red Blockchain:</span>
+                            <span class="font-bold text-emerald-700 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                NEAR Testnet (On-Chain)
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-neutral-600 uppercase tracking-wider mb-1.5">
+                            Usuario o DNI Destinatario
+                        </label>
+                        <input type="text" id="modal-transfer-destinatario" class="w-full bg-white border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-[#1B3A5F]" placeholder="Ej: demo_2 o 22345678">
+                        
+                        <!-- Quick buttons -->
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="text-[10px] text-neutral-400">Atajo demo:</span>
+                            <button type="button" onclick="document.getElementById('modal-transfer-destinatario').value='demo_2'" class="text-[11px] font-semibold bg-[#1B3A5F]/10 hover:bg-[#1B3A5F]/20 text-[#1B3A5F] px-2.5 py-1 rounded-md border border-[#1B3A5F]/20 transition">
+                                demo_2 (DNI: 22345678)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50/80 border border-amber-200/80 p-3 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                        <svg class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Al confirmar, la propiedad del NFT se transferirá en NEAR Protocol a la subcuenta <code class="font-mono font-bold">cliente-[DNI].kipulux.testnet</code> y la prenda se mostrará en su colección.</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex justify-end gap-2.5 pt-3 border-t border-neutral-100">
+                    <button type="button" onclick="closeClientTransferModal()" class="px-4 py-2 rounded-lg border border-neutral-300 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btn-submit-client-transfer" onclick="executeClientTransfer()" class="px-4 py-2 rounded-lg bg-[#B08D2F] hover:bg-[#977826] text-neutral-950 font-bold text-xs transition flex items-center gap-1.5 shadow-md">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        <span>Confirmar Transferencia NEAR</span>
                     </button>
                 </div>
             </div>
@@ -2651,9 +2785,13 @@
                                     <h4 class="title-serif text-base font-bold text-neutral-100">${prod.SKU_Producto_Final}</h4>
                                 </div>
                             </div>
-                            <div class="p-5 pt-0 flex gap-2">
+                            <div class="p-5 pt-0 flex flex-wrap gap-2">
                                 <button onclick="searchSkuDirect('${prod.SKU_Producto_Final}')" class="flex-grow bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-gold-500 hover:text-gold-400 font-semibold py-2 px-3 rounded-lg text-xs transition uppercase tracking-wider">
                                     Trazabilidad
+                                </button>
+                                <button onclick="openClientTransferModal('${prod.SKU_Producto_Final}')" class="bg-[#B08D2F] hover:bg-[#977826] text-neutral-950 font-bold px-3 py-2 rounded-lg text-xs transition uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm" title="Transferir a otro coleccionista (ej. demo_2)">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                    <span>Transferir</span>
                                 </button>
                                 ${prod.PDF_Certificado_Previo ? `
                                 <a href="${prod.PDF_Certificado_Previo}" target="_blank" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold px-3 py-2 rounded-lg text-xs transition uppercase tracking-wider flex items-center justify-center">
@@ -2675,6 +2813,68 @@
                 emptyState.classList.remove('hidden');
             }
         }
+
+        window.openClientTransferModal = function(sku) {
+            const modal = document.getElementById('modal-transferir-cliente');
+            const skuEl = document.getElementById('modal-transfer-sku');
+            const destInput = document.getElementById('modal-transfer-destinatario');
+            if (skuEl) skuEl.textContent = sku;
+            if (destInput) destInput.value = 'demo_2';
+            if (modal) modal.classList.remove('hidden');
+        };
+
+        window.closeClientTransferModal = function() {
+            const modal = document.getElementById('modal-transferir-cliente');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.executeClientTransfer = async function() {
+            const sku = document.getElementById('modal-transfer-sku')?.textContent?.trim();
+            const destinatario = document.getElementById('modal-transfer-destinatario')?.value?.trim();
+            const btn = document.getElementById('btn-submit-client-transfer');
+
+            if (!sku || !destinatario) {
+                showAlert('warning', 'Campos requeridos', 'Por favor ingresa el usuario o DNI de destino.');
+                return;
+            }
+
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="animate-spin mr-1">⚙️</span> Transfiriendo en NEAR...`;
+            }
+
+            try {
+                const token = localStorage.getItem('accessToken');
+                const res = await fetch(`${API_BASE}/clientes/transferir`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ sku, destinatario })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Error al procesar la transferencia.');
+                }
+
+                closeClientTransferModal();
+                showAlert('success', '¡Transferencia Exitosa!', `Prenda ${sku} transferida on-chain a ${data.destinatarioNombre || destinatario}. Tx: ${data.nearTxHash?.slice(0, 16)}...`);
+
+                // Recargar compras del cliente actual
+                await fetchClientPurchases();
+
+            } catch (err) {
+                showAlert('error', 'Error de Transferencia', err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml;
+                }
+            }
+        };
 
         function searchSkuDirect(sku) {
             document.getElementById('input-search-sku').value = sku;

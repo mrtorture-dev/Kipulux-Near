@@ -294,13 +294,21 @@ async function ejecutarReventaEscrow(tokenId, vendedorAccount, compradorAccount,
     try {
         const client = await initNear();
         if (client && client.relayerAccount) {
-            // En la red real, invocamos nft_transfer hacia el comprador
+            function sanitizarAccountId(accId) {
+                if (!accId) return RELAYER_ACCOUNT_ID;
+                const clean = String(accId).toLowerCase().trim();
+                if (clean.endsWith('.testnet') || clean.endsWith('.near')) return clean;
+                return RELAYER_ACCOUNT_ID;
+            }
+            const cleanComprador = sanitizarAccountId(compradorAccount);
+
+            // En la red real, invocamos transferir_custodia hacia el comprador
             const outcome = await client.relayerAccount.callFunctionRaw({
                 contractId: CONTRACT_NAME,
                 methodName: 'transferir_custodia',
                 args: {
                     token_id: tokenId,
-                    nueva_tienda: compradorAccount // o nuevo dueño
+                    nueva_tienda: cleanComprador
                 },
                 gas: BigInt('150000000000000'),
                 deposit: BigInt('1')

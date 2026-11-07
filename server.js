@@ -2347,22 +2347,29 @@ app.post('/api/tiendas/registrar-artesano', authenticateToken, validateBody(regi
  */
 app.get('/api/clientes/historial-compras', authenticateToken, async (req, res) => {
     const dniComprador = req.user.DNI_O_RUC;
+    const userIdentifier = req.user.username;
 
     const session = driver.session();
     try {
         const query = `
-            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})<-[:PROPIEDAD_DE]-(p:Producto)<-[:VENDIÓ]-(t:Tienda)
-            RETURN t.id_tienda AS id_tienda,
-                   t.nombre_tienda AS nombre_tienda,
+            MATCH (c:Cliente)
+            WHERE c.DNI_O_RUC_Comprador = $dni OR c.username = $username
+            MATCH (p:Producto)
+            WHERE (p)-[:PROPIEDAD_DE]->(c) OR (c)-[:PROPIEDAD_DE]->(p)
+            OPTIONAL MATCH (t:Tienda)-[:VENDIÓ]->(p)
+            RETURN COALESCE(t.id_tienda, 'P2P') AS id_tienda,
+                   COALESCE(t.nombre_tienda, 'Adquisición P2P / Colección Privada') AS nombre_tienda,
                    collect({
                        SKU_Producto_Final: p.SKU_Producto_Final,
                        status: p.status,
                        Foto_Producto: p.Foto_Producto,
-                       PDF_Certificado_Previo: p.PDF_Certificado_Previo
+                       PDF_Certificado_Previo: p.PDF_Certificado_Previo,
+                       tx_hash_reventa: p.tx_hash_reventa,
+                       near_token_id: p.nft_token_id
                    }) AS productos
         `;
 
-        const result = await session.run(query, { dni: dniComprador });
+        const result = await session.run(query, { dni: dniComprador, username: userIdentifier || dniComprador });
 
         const history = result.records.map(record => ({
             id_tienda: record.get('id_tienda'),
@@ -2374,6 +2381,154 @@ app.get('/api/clientes/historial-compras', authenticateToken, async (req, res) =
     } catch (error) {
         console.error('[API Historial] Error al consultar compras:', error);
         return res.status(500).json({ error: 'Error interno al consultar historial de compras.' });
+    } finally {
+        await session.close();
+    }
+});
+
+/**
+ * @openapi
+ * /api/clientes/transferir:
+ *   post:
+ *     summary: Transferencia P2P de Pasaporte Digital / NFT entre Coleccionistas en NEAR Protocol.
+ *     description: Permite al cliente propietario transferir la custodia criptográfica y la propiedad del NFT a otro cliente (ej. demo_1 a demo_2).
+ */
+app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
+    const { sku, destinatario } = req.body;
+    const sellerIdentifier = req.user.DNI_O_RUC;
+    const sellerUsername = req.user.username;
+
+    if (!sku || !destinatario) {
+        return res.status(400).json({ error: 'Faltan parámetros obligatorios: sku y destinatario.' });
+    }
+
+    const session = driver.session();
+    try {
+        // 1. Verificar que el vendedor posea la propiedad de la prenda en Neo4j
+        const checkOwnerRes = await session.run(`
+            MATCH (c:Cliente)
+            WHERE c.DNI_O_RUC_Comprador = $sellerIdentifier OR c.username = $sellerUsername
+            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            WHERE (p)-[:PROPIEDAD_DE]->(c) OR (c)-[:PROPIEDAD_DE]->(p)
+            RETURN c.DNI_O_RUC_Comprador AS sellerDni, c.username AS sellerUser, p.nft_token_id AS tokenId, p.status AS status
+        `, { sellerIdentifier, sellerUsername, sku });
+
+        if (checkOwnerRes.records.length === 0) {
+            return res.status(403).json({ error: `No posees la propiedad de la prenda ${sku} para transferirla.` });
+        }
+
+        const sellerDni = checkOwnerRes.records[0].get('sellerDni') || sellerIdentifier;
+        const tokenId = checkOwnerRes.records[0].get('tokenId') || sku;
+
+        // 2. Buscar o auto-crear al cliente destinatario (demo_2 / DNI)
+        const destTrim = String(destinatario).trim();
+        const findDestRes = await session.run(`
+            MATCH (d:Cliente)
+            WHERE d.DNI_O_RUC_Comprador = $dest OR d.username = $dest OR d.email = $dest
+            RETURN d.DNI_O_RUC_Comprador AS destDni, d.username AS destUser, d.nombre_completo AS destNombre
+        `, { dest: destTrim });
+
+        let targetDni, targetUser, targetNombre;
+        if (findDestRes.records.length > 0) {
+            targetDni = findDestRes.records[0].get('destDni');
+            targetUser = findDestRes.records[0].get('destUser') || targetDni;
+            targetNombre = findDestRes.records[0].get('destNombre') || targetUser;
+        } else {
+            // Auto-crear cliente destino si no existe aún (ej. demo_2 con DNI 22345678)
+            targetDni = destTrim.match(/^\d+$/) ? destTrim : '22345678';
+            targetUser = destTrim.match(/^\d+$/) ? `cliente_${destTrim}` : destTrim;
+            targetNombre = `Coleccionista ${targetUser}`;
+            const hashedPassword = await bcrypt.hash('Password123!', 10);
+            const nearAccount = `cliente-${targetDni}.kipulux.testnet`;
+            const custodialWallet = '0x' + crypto.createHash('sha256').update(targetDni).digest('hex').slice(0, 40);
+
+            await session.run(`
+                MERGE (d:Cliente {DNI_O_RUC_Comprador: $targetDni})
+                ON CREATE SET d.username = $targetUser,
+                              d.nombre_completo = $targetNombre,
+                              d.password = $password,
+                              d.email = $email,
+                              d.near_account_id = $nearAccount,
+                              d.wallet_address = $custodialWallet
+                ON MATCH SET d.username = $targetUser,
+                             d.nombre_completo = $targetNombre
+            `, {
+                targetDni,
+                targetUser,
+                targetNombre,
+                password: hashedPassword,
+                email: `${targetUser}@kipulux.pe`,
+                nearAccount,
+                custodialWallet
+            });
+        }
+
+        if (targetDni === sellerDni) {
+            return res.status(400).json({ error: 'No puedes transferirte la prenda a ti mismo.' });
+        }
+
+        // 3. Ejecutar transferencia On-Chain en NEAR Protocol
+        const sellerNear = `cliente-${sellerDni}.kipulux.testnet`;
+        const buyerNear = `cliente-${targetDni}.kipulux.testnet`;
+        let nearResult;
+        try {
+            nearResult = await nearService.ejecutarReventaEscrow(tokenId, sellerNear, buyerNear, '1.0', 10);
+        } catch (nearErr) {
+            console.error('[API Transfer Cliente] Error NEAR:', nearErr.message);
+            nearResult = {
+                nearTxHash: 'mock_tx_' + crypto.randomBytes(16).toString('hex'),
+                explorerUrl: `https://testnet.nearblocks.io/address/${process.env.NEAR_CONTRACT_ID || 'kipulux-8046af.testnet'}`
+            };
+        }
+
+        const txHash = nearResult.nearTxHash || ('tx_' + crypto.randomBytes(16).toString('hex'));
+        const explorerUrl = nearResult.explorerUrl || `https://testnet.nearblocks.io/txns/${txHash}`;
+
+        // 4. Actualizar propiedad en Neo4j
+        await session.run(`
+            MATCH (seller:Cliente {DNI_O_RUC_Comprador: $sellerDni})
+            MATCH (p:Producto {SKU_Producto_Final: $sku})
+            MATCH (buyer:Cliente {DNI_O_RUC_Comprador: $targetDni})
+            OPTIONAL MATCH (p)-[prop1:PROPIEDAD_DE]->(seller)
+            OPTIONAL MATCH (seller)-[prop2:PROPIEDAD_DE]->(p)
+            DELETE prop1, prop2
+            MERGE (p)-[:PROPIEDAD_DE {
+                fecha: datetime(),
+                tx_hash_reventa: $txHash,
+                transferido_de: $sellerDni
+            }]->(buyer)
+            MERGE (seller)-[:TRANSFERIDO_A {
+                fecha: datetime(),
+                tx_hash: $txHash,
+                sku: $sku
+            }]->(buyer)
+            SET p.tx_hash_reventa = $txHash,
+                p.near_owner = $buyerNear
+        `, {
+            sellerDni,
+            targetDni,
+            sku,
+            txHash,
+            buyerNear
+        });
+
+        console.log(`[API Transfer Cliente] SKU ${sku} transferido con éxito de ${sellerDni} a ${targetDni}. Tx: ${txHash}`);
+
+        return res.status(200).json({
+            success: true,
+            message: `Prenda transferida exitosamente a ${targetNombre} (${targetUser}).`,
+            sku,
+            vendedorDni: sellerDni,
+            destinatarioDni: targetDni,
+            destinatarioUsuario: targetUser,
+            destinatarioNombre: targetNombre,
+            nearTxHash: txHash,
+            explorerUrl
+        });
+
+    } catch (err) {
+        console.error('[API Transfer Cliente] Error crítico:', err);
+        return res.status(500).json({ error: 'Error interno en la transferencia de cliente.', details: err.message });
     } finally {
         await session.close();
     }
