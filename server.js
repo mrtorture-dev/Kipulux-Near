@@ -2448,15 +2448,25 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
         const custodialWallet = '0x' + crypto.createHash('sha256').update(targetDni).digest('hex').slice(0, 40);
 
         await session.run(`
-            MERGE (d:Cliente {username: $targetUser})
-            ON CREATE SET d.DNI_O_RUC_Comprador = $targetDni,
-                          d.nombre_completo = $targetNombre,
-                          d.password = $password,
-                          d.email = $email,
-                          d.near_account_id = $buyerNear,
-                          d.wallet_address = $custodialWallet
-            ON MATCH SET d.DNI_O_RUC_Comprador = $targetDni,
-                         d.near_account_id = $buyerNear
+            OPTIONAL MATCH (byDni:Cliente {DNI_O_RUC_Comprador: $targetDni})
+            OPTIONAL MATCH (byUser:Cliente {username: $targetUser})
+            WITH COALESCE(byDni, byUser) AS existingClient
+            FOREACH (_ IN CASE WHEN existingClient IS NULL THEN [1] ELSE [] END |
+                CREATE (d:Cliente {
+                    DNI_O_RUC_Comprador: $targetDni,
+                    username: $targetUser,
+                    nombre_completo: $targetNombre,
+                    password: $password,
+                    email: $email,
+                    near_account_id: $buyerNear,
+                    wallet_address: $custodialWallet
+                })
+            )
+            FOREACH (_ IN CASE WHEN existingClient IS NOT NULL THEN [1] ELSE [] END |
+                SET existingClient.username = $targetUser,
+                    existingClient.DNI_O_RUC_Comprador = $targetDni,
+                    existingClient.near_account_id = $buyerNear
+            )
         `, {
             targetDni,
             targetUser,
@@ -2483,7 +2493,8 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
         await session.run(`
             MATCH (p:Producto {SKU_Producto_Final: $sku})
             MATCH (buyer:Cliente)
-            WHERE buyer.username = $targetUser OR buyer.DNI_O_RUC_Comprador = $targetDni
+            WHERE buyer.DNI_O_RUC_Comprador = $targetDni OR buyer.username = $targetUser
+            WITH p, buyer LIMIT 1
             OPTIONAL MATCH (p)-[r1:PROPIEDAD_DE]->(:Cliente)
             OPTIONAL MATCH (:Cliente)-[r2:PROPIEDAD_DE]->(p)
             OPTIONAL MATCH (p)-[r3:ENTREGADO_A]->(:Tienda)
@@ -2499,6 +2510,7 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
             WITH p, buyer
             OPTIONAL MATCH (seller:Cliente)
             WHERE seller.DNI_O_RUC_Comprador = $sellerDni OR seller.username = $sellerUser
+            WITH p, buyer, seller LIMIT 1
             FOREACH (_ IN CASE WHEN seller IS NOT NULL THEN [1] ELSE [] END |
                 MERGE (seller)-[:TRANSFERIDO_A {
                     fecha: datetime(),
