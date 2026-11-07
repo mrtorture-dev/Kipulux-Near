@@ -2855,9 +2855,9 @@
                     body: JSON.stringify({ sku, destinatario })
                 });
 
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                    throw new Error(data.error || 'Error al procesar la transferencia.');
+                    throw new Error(data.error || data.details || 'Error al procesar la transferencia.');
                 }
 
                 closeClientTransferModal();
