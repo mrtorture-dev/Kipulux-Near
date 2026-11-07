@@ -1912,7 +1912,7 @@
 
                 // Save token & info
                 localStorage.setItem('accessToken', data.accessToken);
-                currentUser = decodeJWT(data.accessToken);
+                currentUser = { ...decodeJWT(data.accessToken), ...data };
 
                 showAlert('success', 'Sesión Iniciada', `Autenticado con éxito como ${data.type}`);
                 showDashboard();
@@ -2096,8 +2096,8 @@
             const triggerAvatarLetter = document.getElementById('trigger-avatar-letter');
 
             let rawName = currentUser.nombre ? String(currentUser.nombre).replace(/^T\s*/g, '').replace(/\n/g, '').trim() : '';
-            const name = rawName || (currentUser.type === 'Artesano' ? 'Taller Artesanal Paracas' : (currentUser.type === 'Tienda' ? 'Boutique Cusco' : 'Cliente KipuLux'));
-            const email = currentUser.email || `${currentUser.username || 'artesano'}@kipulux.pe`;
+            const name = rawName || (currentUser.username ? currentUser.username : (currentUser.type === 'Artesano' ? 'Taller Artesanal Paracas' : (currentUser.type === 'Tienda' ? 'Boutique Cusco' : 'Cliente KipuLux')));
+            const email = currentUser.email || (currentUser.username ? `${currentUser.username}@kipulux.pe` : 'cliente@kipulux.pe');
             const displayRole = currentUser.type === 'Artesano' ? 'Maestro Artesano' : (currentUser.type === 'Tienda' ? 'Tienda Autorizada' : 'Cliente Final');
             const letter = name.charAt(0).toUpperCase();
 

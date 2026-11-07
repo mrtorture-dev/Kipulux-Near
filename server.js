@@ -746,7 +746,10 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
             WHERE (u:Artesano OR u:Tienda OR u:Cliente) 
               AND (u.username = $identifier OR u.email = $identifier)
             RETURN labels(u)[0] AS type, u.password AS password, 
-                   COALESCE(u.RUC_Fabricante, u.id_tienda, u.DNI_O_RUC_Comprador) AS dni_o_ruc
+                   COALESCE(u.RUC_Fabricante, u.id_tienda, u.DNI_O_RUC_Comprador) AS dni_o_ruc,
+                   u.email AS email,
+                   COALESCE(u.nombre_completo, u.nombre_taller, u.nombre_tienda, u.username) AS nombre,
+                   u.username AS username
         `, { identifier });
 
         if (result.records.length === 0) {
@@ -769,8 +772,12 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
             return res.status(401).json({ success: false, error: 'Contraseña incorrecta.' });
         }
 
+        const email = record.get('email') || (identifier.includes('@') ? identifier : null);
+        const nombre = record.get('nombre') || '';
+        const username = record.get('username') || identifier;
+
         const token = jwt.sign(
-            { DNI_O_RUC: dni_o_ruc, type },
+            { DNI_O_RUC: dni_o_ruc, type, email, nombre, username },
             jwtSecret,
             { expiresIn: '2h' }
         );
@@ -781,7 +788,10 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
             tokenType: 'Bearer',
             expiresIn: '2h',
             type,
-            dni_o_ruc
+            dni_o_ruc,
+            email,
+            nombre,
+            username
         });
 
     } catch (error) {
