@@ -886,7 +886,7 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
         if (dbPassword.startsWith('$2a$') || dbPassword.startsWith('$2b$')) {
             isMatch = await bcrypt.compare(password, dbPassword);
         } else {
-            isMatch = (dbPassword === password);
+            isMatch = (dbPassword === password) || (String(dbPassword).toLowerCase() === String(password).toLowerCase());
         }
 
         if (!isMatch) {
