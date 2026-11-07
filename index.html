@@ -2767,8 +2767,9 @@
                     
                     shopGroup.productos.forEach(prod => {
                         productCount++;
-                        // Resolve image URL
+                        // Resolve image and PDF URL
                         const imgSrc = resolveIpfsUri(prod.Foto_Producto, prod.SKU_Producto_Final) || LUXURY_PLACEHOLDER_SVG;
+                        const pdfUrl = resolveIpfsUri(prod.PDF_Certificado_Previo, prod.SKU_Producto_Final);
                         
                         const card = document.createElement('div');
                         card.className = "glass-panel rounded-2xl overflow-hidden shadow-lg border border-neutral-900 group hover:border-gold-500/40 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-gold-500/5 flex flex-col justify-between";
@@ -2793,8 +2794,8 @@
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                                     <span>Transferir</span>
                                 </button>
-                                ${prod.PDF_Certificado_Previo ? `
-                                <a href="${prod.PDF_Certificado_Previo}" target="_blank" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold px-3 py-2 rounded-lg text-xs transition uppercase tracking-wider flex items-center justify-center">
+                                ${pdfUrl ? `
+                                <a href="${pdfUrl}" target="_blank" class="bg-gold-600 hover:bg-gold-500 text-neutral-950 font-bold px-3 py-2 rounded-lg text-xs transition uppercase tracking-wider flex items-center justify-center">
                                     Certificado
                                 </a>
                                 ` : ''}

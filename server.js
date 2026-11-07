@@ -2512,6 +2512,7 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
         `, {
             sku,
             targetDni,
+            targetUser,
             sellerDni,
             sellerUser,
             txHash: nearTxHash,
