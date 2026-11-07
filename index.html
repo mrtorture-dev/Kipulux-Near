@@ -442,8 +442,12 @@
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="p-6 border-t border-[#B08D2F]/20 bg-[#1B3A5F] flex justify-end">
-                    <button type="button" onclick="printQrLabel()" class="bg-[#12294A] hover:bg-[#0A182E] text-[#F2EFE9] border border-[#B08D2F]/50 font-medium py-2.5 px-5 rounded-lg transition active:scale-95 flex items-center gap-1.5">
+                <div class="p-6 border-t border-[#B08D2F]/20 bg-[#1B3A5F] flex justify-between items-center">
+                    <button type="button" id="modal-inspeccion-dispatch-btn" onclick="despacharDesdeModal()" class="hidden bg-[#B08D2F] hover:bg-[#977826] text-neutral-950 font-bold py-2.5 px-4 rounded-lg transition active:scale-95 flex items-center gap-1.5 shadow-md text-xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        <span>Despachar a Boutique</span>
+                    </button>
+                    <button type="button" onclick="printQrLabel()" class="bg-[#12294A] hover:bg-[#0A182E] text-[#F2EFE9] border border-[#B08D2F]/50 font-medium py-2.5 px-5 rounded-lg transition active:scale-95 flex items-center gap-1.5 ml-auto">
                         <svg class="w-4 h-4 inline-block mr-1.5 align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Imprimir Marbete de Trazabilidad
                     </button>
                 </div>
@@ -3498,9 +3502,35 @@
             }
         };
 
-        window.openBulkDispatchModal = async function() {
+        let currentDispatchSKUs = [];
+
+        window.despacharDirecto = function(sku) {
             const checkboxes = document.querySelectorAll('.producto-checkbox');
-            const selectedSKUs = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            checkboxes.forEach(cb => {
+                cb.checked = (cb.value === sku);
+            });
+            if (typeof updateSelectedCount === 'function') {
+                updateSelectedCount();
+            }
+            openBulkDispatchModal(sku);
+        };
+
+        window.despacharDesdeModal = function() {
+            const sku = document.getElementById('modal-sku-title')?.textContent?.trim();
+            closeInspeccionModal();
+            if (sku) {
+                despacharDirecto(sku);
+            }
+        };
+
+        window.openBulkDispatchModal = async function(directSku) {
+            if (directSku) {
+                currentDispatchSKUs = [directSku];
+            } else {
+                const checkboxes = document.querySelectorAll('.producto-checkbox');
+                currentDispatchSKUs = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            }
+            const selectedSKUs = currentDispatchSKUs;
             
             document.getElementById('modal-dispatch-count').textContent = `${selectedSKUs.length} prendas`;
             
@@ -3533,8 +3563,11 @@
         };
 
         window.submitBulkDispatch = async function() {
-            const checkboxes = document.querySelectorAll('.producto-checkbox');
-            const selectedSKUs = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            let selectedSKUs = (currentDispatchSKUs && currentDispatchSKUs.length > 0) ? currentDispatchSKUs : [];
+            if (selectedSKUs.length === 0) {
+                const checkboxes = document.querySelectorAll('.producto-checkbox');
+                selectedSKUs = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            }
             const rucTienda = document.getElementById('modal-dispatch-tienda').value;
             const submitBtn = document.getElementById('btn-submit-bulk-dispatch');
             
@@ -3732,7 +3765,13 @@
                     : `<input type="checkbox" disabled class="w-5 h-5 rounded border-neutral-200 text-neutral-300 cursor-not-allowed opacity-40" title="Ya fue despachado o vendido">`;
 
                 const actionBtns = `
-                    <div class="flex items-center justify-end">
+                    <div class="flex items-center justify-end gap-2">
+                        ${p.status === 'ORIGINADO' ? `
+                            <button onclick="despacharDirecto('${p.SKU_Producto_Final}')" class="h-9 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-[#B08D2F] hover:bg-[#977826] text-neutral-950 transition shadow-sm flex items-center gap-1.5 min-h-[36px]" title="Despachar a Boutique">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                <span>Despachar</span>
+                            </button>
+                        ` : ''}
                         <button onclick="openInspeccionModal('${p.SKU_Producto_Final}')" class="h-9 px-4 py-2 text-sm font-medium rounded-lg bg-white hover:bg-[#1B3A5F] hover:text-[#F2EFE9] border border-neutral-300 text-[#1B3A5F] transition-colors shadow-sm min-h-[36px]">Inspeccionar</button>
                     </div>
                 `;
@@ -3870,6 +3909,15 @@
                 document.getElementById('modal-tienda-nombre').textContent = data.nombre_tienda || 'N/A';
                 document.getElementById('modal-cliente-nombre').textContent = data.cliente_nombre || 'N/A';
                 document.getElementById('modal-sunat-hash').textContent = data.Hash_Comprobante_Pago || 'N/A';
+
+                const modalDispatchBtn = document.getElementById('modal-inspeccion-dispatch-btn');
+                if (modalDispatchBtn) {
+                    if (data.status === 'ORIGINADO') {
+                        modalDispatchBtn.classList.remove('hidden');
+                    } else {
+                        modalDispatchBtn.classList.add('hidden');
+                    }
+                }
 
             } catch (err) {
                 showToast('error', 'Error de Inspección', err.message);
