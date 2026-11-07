@@ -1256,7 +1256,27 @@ app.post('/api/productos/crear', authenticateToken, upload.fields([
 
             // D) Acuñar NFT en la blockchain asignándoselo a la wallet del artesano
             console.log(`[API Crear] Acuñando NFT de origen para SKU: ${SKU_Producto_Final} en wallet artesano: ${artesanoAddress}...`);
-            const { tokenId, txHash } = await ejecutarMintOnChain(artesanoAddress, tokenUri);
+            const { tokenId: evmTokenId, txHash: evmTxHash } = await ejecutarMintOnChain(artesanoAddress, tokenUri);
+            let tokenId = evmTokenId;
+            let txHash = evmTxHash;
+            let nearReceiptId = `rec_${crypto.randomBytes(8).toString('hex')}`;
+
+            try {
+                if (nearService && typeof nearService.mintAuthorized === 'function') {
+                    const nearMint = await nearService.mintAuthorized(rucFabricante, SKU_Producto_Final, tokenUri, {
+                        descripcion: Descripcion,
+                        media: fotoUrl
+                    });
+                    if (nearMint) {
+                        tokenId = nearMint.nearTokenId || tokenId;
+                        txHash = nearMint.nearTxHash || txHash;
+                        nearReceiptId = nearMint.receiptId || nearReceiptId;
+                    }
+                }
+            } catch (nearErr) {
+                console.warn('[API Crear] NEAR mintAuthorized fallback:', nearErr.message);
+            }
+
             console.log(`[API Crear] NFT Minteado para Artesano. TokenId: ${tokenId}, TxHash: ${txHash}. Guardando en Neo4j...`);
 
             // E) Persistir en Neo4j y establecer relaciones con el lote y el artesano
