@@ -859,7 +859,13 @@ app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => 
         const result = await session.run(`
             MATCH (u)
             WHERE (u:Artesano OR u:Tienda OR u:Cliente) 
-              AND (u.username = $identifier OR u.email = $identifier)
+              AND (
+                  u.username = $identifier 
+                  OR u.email = $identifier 
+                  OR u.DNI_O_RUC_Comprador = $identifier 
+                  OR u.RUC_Fabricante = $identifier 
+                  OR u.id_tienda = $identifier
+              )
             RETURN labels(u)[0] AS type, u.password AS password, 
                    COALESCE(u.RUC_Fabricante, u.id_tienda, u.DNI_O_RUC_Comprador) AS dni_o_ruc,
                    u.email AS email,
@@ -2420,14 +2426,14 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
         const sellerDni = String(prodRecord.get('ownerDni') || sellerIdentifier || '11345678').trim();
         const sellerUser = String(prodRecord.get('ownerUser') || sellerUsername || 'demo_1').trim();
 
-        // 2. Resolver o auto-crear al cliente destinatario (demo_2 / 22345678)
+        // 2. Resolver o auto-crear al cliente destinatario (demo_2 / 11245678)
         let targetUser = 'demo_2';
-        let targetDni = '22345678';
+        let targetDni = '11245678';
         let targetNombre = 'Coleccionista Demo 2';
 
-        if (destinatario === 'demo_2' || destinatario === '22345678') {
+        if (destinatario === 'demo_2' || destinatario === '11245678' || destinatario === '22345678') {
             targetUser = 'demo_2';
-            targetDni = '22345678';
+            targetDni = '11245678';
             targetNombre = 'Coleccionista Demo 2';
         } else if (/^\d+$/.test(destinatario)) {
             targetDni = destinatario;
@@ -2435,7 +2441,7 @@ app.post('/api/clientes/transferir', authenticateToken, async (req, res) => {
             targetNombre = `Coleccionista ${destinatario}`;
         } else {
             targetUser = destinatario;
-            targetDni = '22345678';
+            targetDni = '11245678';
             targetNombre = `Coleccionista ${destinatario}`;
         }
 
