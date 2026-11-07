@@ -1790,6 +1790,17 @@
                             rucInput.value = currentUser.DNI_O_RUC;
                         }
                     }
+
+                    // Sincronizar datos reales del usuario desde el servidor
+                    fetch(`${API_BASE}/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }).then(r => r.ok ? r.json() : null)
+                      .then(liveUser => {
+                          if (liveUser && liveUser.nombre) {
+                              currentUser = { ...currentUser, ...liveUser };
+                              showDashboard();
+                          }
+                      }).catch(() => {});
                     return;
                 }
             }
@@ -1875,16 +1886,28 @@
                     })
                 });
 
-                showAlert('success', 'Registro Exitoso', 'Tu pasaporte digital ha sido creado. Inicia sesión con tus credenciales.');
-                
-                // Limpiar formulario y redireccionar a pestaña login
-                document.getElementById('register-form').reset();
-                switchAuthTab('login');
-                
-                // Pre-llenar el identificador con el username creado para facilitar el login
-                document.getElementById('login-identifier').value = username;
-                document.getElementById('login-password').value = '';
-                document.getElementById('login-password').focus();
+                // Iniciar sesión automáticamente con la nueva identidad
+                try {
+                    const loginData = await request(`${API_BASE}/auth/mock-login`, {
+                        method: 'POST',
+                        body: JSON.stringify({ identifier: username, password })
+                    });
+                    localStorage.setItem('accessToken', loginData.accessToken);
+                    currentUser = { ...decodeJWT(loginData.accessToken), ...loginData, nombre, email, username };
+                    showAlert('success', '¡Bienvenido a KipuLux!', `Cuenta creada con éxito. Ingresando como ${nombre}...`);
+                    document.getElementById('register-form').reset();
+                    showDashboard();
+                    return;
+                } catch (autoLoginErr) {
+                    localStorage.removeItem('accessToken');
+                    currentUser = null;
+                    document.getElementById('register-form').reset();
+                    switchAuthTab('login');
+                    document.getElementById('login-identifier').value = username;
+                    document.getElementById('login-password').value = '';
+                    document.getElementById('login-password').focus();
+                    showAlert('success', 'Registro Exitoso', 'Tu pasaporte digital ha sido creado. Inicia sesión con tus credenciales.');
+                }
 
             } catch (err) {
                 showAlert('error', 'Fallo al Registrar', err.message);
@@ -2005,24 +2028,44 @@
                 }
             } else if (currentUser.type === 'Tienda') {
                 if (titulo) titulo.textContent = 'Perfil de Boutique Autorizada (Mi Boutique)';
-                if (nombre) nombre.textContent = 'Boutique Cusco - KipuLux';
+                const boutiqueName = currentUser.nombre || (currentUser.username ? currentUser.username : 'Boutique Autorizada');
+                if (nombre) nombre.textContent = boutiqueName;
                 const mainTitle = document.getElementById('dashboard-header-title');
-                if (mainTitle) mainTitle.textContent = 'Boutique Cusco - KipuLux | Comercialización B2B';
-                if (ubicacion) ubicacion.textContent = 'Portal de Panes 123, Cusco';
-                if (email) email.textContent = 'tienda.cusco@kipulux.com';
-                if (wallet) wallet.textContent = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC';
+                if (mainTitle) mainTitle.textContent = `${boutiqueName} | Comercialización B2B`;
+                if (ubicacion) ubicacion.textContent = currentUser.direccion || 'Portal de Panes 123, Cusco';
+                if (email) email.textContent = currentUser.email || 'tienda@kipulux.com';
+                if (wallet) wallet.textContent = currentUser.wallet || currentUser.wallet_address || '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC';
                 if (certCodigo) certCodigo.textContent = 'KIPULUX-BOUTIQUE-ACTIVE';
                 if (totalPrendas) totalPrendas.textContent = 'N/A';
             } else {
-                if (titulo) titulo.textContent = 'Perfil de Cliente Premium';
-                if (nombre) nombre.textContent = 'Juan Pérez';
+                if (titulo) titulo.textContent = 'Perfil de Cliente Final (Coleccionista)';
+                const clientName = currentUser.nombre || currentUser.username || 'Cliente KipuLux';
+                if (nombre) nombre.textContent = clientName;
                 const mainTitle = document.getElementById('dashboard-header-title');
-                if (mainTitle) mainTitle.textContent = 'Colección Privada: Juan Pérez | Pasaporte Digital';
-                if (ubicacion) ubicacion.textContent = 'Cusco, Perú';
-                if (email) email.textContent = 'juan.perez@gmail.com';
-                if (wallet) wallet.textContent = '0x90F79bf6EB2c4f870365E785982E1f101E93b906';
-                if (certCodigo) certCodigo.textContent = 'KIPULUX-COLLECTOR';
-                if (totalPrendas) totalPrendas.textContent = 'N/A';
+                if (mainTitle) mainTitle.textContent = `Colección Privada: ${clientName} | Pasaporte Digital`;
+                if (ruc) ruc.textContent = currentUser.DNI_O_RUC || currentUser.dni || 's/n';
+                if (ubicacion) ubicacion.textContent = currentUser.direccion || 'Lima / Cusco, Perú';
+                if (email) email.textContent = currentUser.email || (currentUser.username ? `${currentUser.username}@kipulux.pe` : 'cliente@kipulux.pe');
+                const clientWallet = currentUser.near_account_id || currentUser.wallet || currentUser.wallet_address || (currentUser.DNI_O_RUC ? `cliente-${currentUser.DNI_O_RUC}.kipulux.testnet` : 'Billetera NEAR');
+                if (wallet) wallet.textContent = clientWallet;
+                if (certCodigo) certCodigo.textContent = 'KIPULUX-VERIFIED-COLLECTOR';
+                if (totalPrendas) totalPrendas.textContent = '0';
+
+                // Consulta de perfil en vivo
+                fetch(`${API_BASE}/clientes/perfil`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.ok ? r.json() : null)
+                  .then(data => {
+                      if (data) {
+                          if (data.nombre) {
+                              if (nombre) nombre.textContent = data.nombre;
+                              if (mainTitle) mainTitle.textContent = `Colección Privada: ${data.nombre} | Pasaporte Digital`;
+                          }
+                          if (email && data.email) email.textContent = data.email;
+                          if (wallet && (data.near_account_id || data.wallet)) wallet.textContent = data.near_account_id || data.wallet;
+                          if (totalPrendas && data.total_compras !== undefined) totalPrendas.textContent = String(data.total_compras);
+                      }
+                  }).catch(() => {});
             }
         }
 

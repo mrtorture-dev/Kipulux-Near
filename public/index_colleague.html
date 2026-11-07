@@ -1165,11 +1165,11 @@
                 if (totalPrendas) totalPrendas.textContent = 'N/A';
             } else {
                 if (titulo) titulo.textContent = 'Perfil de Cliente Premium';
-                if (nombre) nombre.textContent = 'Juan Pérez';
+                if (nombre) nombre.textContent = currentUser.nombre || currentUser.username || 'Cliente KipuLux';
                 const mainTitle = document.getElementById('dashboard-header-title');
-                if (mainTitle) mainTitle.textContent = 'Colección Privada: Juan Pérez | Pasaporte Digital';
+                if (mainTitle) mainTitle.textContent = `Colección Privada: ${currentUser.nombre || currentUser.username || 'Cliente KipuLux'} | Pasaporte Digital`;
                 if (ubicacion) ubicacion.textContent = 'Cusco, Perú';
-                if (email) email.textContent = 'juan.perez@gmail.com';
+                if (email) email.textContent = currentUser.email || `${currentUser.username || 'cliente'}@kipulux.pe`;
                 if (wallet) wallet.textContent = '0x90F79bf6EB2c4f870365E785982E1f101E93b906';
                 if (certCodigo) certCodigo.textContent = 'KIPULUX-COLLECTOR';
                 if (totalPrendas) totalPrendas.textContent = 'N/A';
@@ -1246,7 +1246,7 @@
             const triggerAvatarLetter = document.getElementById('trigger-avatar-letter');
 
             const name = currentUser.nombre || (currentUser.type === 'Artesano' ? 'Taller Alda Sur' : (currentUser.type === 'Tienda' ? 'Boutique Cusco' : 'Cliente KipuLux'));
-            const email = currentUser.email || `${currentUser.username || 'artesano'}@kipulux.pe`;
+            const email = currentUser.email || (currentUser.username ? `${currentUser.username}@kipulux.pe` : 'usuario@kipulux.pe');
             const displayRole = currentUser.type === 'Artesano' ? 'Maestro Artesano' : (currentUser.type === 'Tienda' ? 'Tienda Autorizada' : 'Cliente Final');
             const letter = name.charAt(0).toUpperCase();
 

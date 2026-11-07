@@ -736,6 +736,136 @@ app.post('/api/productos/vender', authenticateToken, validateBody(ventaSchema), 
  *       400:
  *         description: Error de validación Zod.
  */
+
+// ==========================================
+// E1.1) ENDPOINTS DE PERFIL EN VIVO (/api/auth/me y /api/clientes/perfil)
+// ==========================================
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    const { DNI_O_RUC, type } = req.user;
+    const session = driver.session();
+    try {
+        let query = '';
+        if (type === 'Artesano') {
+            query = `MATCH (u:Artesano {RUC_Fabricante: $id}) RETURN labels(u)[0] AS type, u.nombre_taller AS nombre, u.RUC_Fabricante AS dni_o_ruc, u.email AS email, u.username AS username, u.eth_address AS wallet, u.direccion AS direccion, u.ubigeo AS ubigeo, u.certificacion_kipulux AS certificacion_kipulux LIMIT 1`;
+        } else if (type === 'Tienda') {
+            query = `MATCH (u:Tienda {id_tienda: $id}) RETURN labels(u)[0] AS type, u.nombre_tienda AS nombre, u.id_tienda AS dni_o_ruc, u.email AS email, u.username AS username, u.wallet_address AS wallet, u.direccion AS direccion, u.ubigeo AS ubigeo LIMIT 1`;
+        } else {
+            query = `MATCH (u:Cliente {DNI_O_RUC_Comprador: $id}) RETURN labels(u)[0] AS type, u.nombre_completo AS nombre, u.DNI_O_RUC_Comprador AS dni_o_ruc, u.email AS email, u.username AS username, coalesce(u.near_account_id, u.wallet_address) AS wallet, u.near_account_id AS near_account_id LIMIT 1`;
+        }
+
+        let result = await session.run(query, { id: DNI_O_RUC });
+        if (result.records.length === 0) {
+            result = await session.run(`
+                MATCH (u)
+                WHERE (u:Artesano OR u:Tienda OR u:Cliente)
+                  AND (u.RUC_Fabricante = $id OR u.id_tienda = $id OR u.DNI_O_RUC_Comprador = $id OR u.username = $id OR u.email = $id)
+                RETURN labels(u)[0] AS type,
+                       coalesce(u.nombre_completo, u.nombre_taller, u.nombre_tienda, u.username) AS nombre,
+                       coalesce(u.DNI_O_RUC_Comprador, u.RUC_Fabricante, u.id_tienda) AS dni_o_ruc,
+                       u.email AS email,
+                       u.username AS username,
+                       coalesce(u.near_account_id, u.wallet_address, u.eth_address) AS wallet,
+                       u.near_account_id AS near_account_id
+                LIMIT 1
+            `, { id: DNI_O_RUC });
+        }
+
+        if (result.records.length === 0) {
+            return res.status(200).json({
+                type: type || 'Cliente',
+                dni_o_ruc: DNI_O_RUC,
+                nombre: req.user.nombre || DNI_O_RUC,
+                username: req.user.username || DNI_O_RUC,
+                email: req.user.email || '',
+                wallet: req.user.DNI_O_RUC ? `cliente-${req.user.DNI_O_RUC}.kipulux.testnet` : ''
+            });
+        }
+
+        const r = result.records[0];
+        return res.status(200).json({
+            type: r.get('type') || type,
+            dni_o_ruc: r.get('dni_o_ruc') || DNI_O_RUC,
+            nombre: r.get('nombre') || '',
+            email: r.get('email') || '',
+            username: r.get('username') || '',
+            wallet: r.get('wallet') || '',
+            near_account_id: r.get('near_account_id') || ''
+        });
+    } catch (err) {
+        console.error('[API /api/auth/me] Error:', err);
+        return res.status(500).json({ error: 'Error interno al consultar perfil.' });
+    } finally {
+        await session.close();
+    }
+});
+
+app.get('/api/clientes/perfil', authenticateToken, async (req, res) => {
+    const dni = req.user.DNI_O_RUC;
+    const session = driver.session();
+    try {
+        let result = await session.run(`
+            MATCH (c:Cliente {DNI_O_RUC_Comprador: $dni})
+            OPTIONAL MATCH (c)<-[:PROPIEDAD_DE]-(p:Producto)
+            RETURN c.nombre_completo AS nombre,
+                   c.DNI_O_RUC_Comprador AS dni,
+                   c.username AS username,
+                   c.email AS email,
+                   c.wallet_address AS wallet,
+                   c.near_account_id AS near_account_id,
+                   count(p) AS total_compras
+        `, { dni });
+
+        if (result.records.length === 0) {
+            result = await session.run(`
+                MATCH (c:Cliente)
+                WHERE c.username = $dni OR c.email = $dni
+                OPTIONAL MATCH (c)<-[:PROPIEDAD_DE]-(p:Producto)
+                RETURN c.nombre_completo AS nombre,
+                       c.DNI_O_RUC_Comprador AS dni,
+                       c.username AS username,
+                       c.email AS email,
+                       c.wallet_address AS wallet,
+                       c.near_account_id AS near_account_id,
+                       count(p) AS total_compras
+                LIMIT 1
+            `, { dni });
+        }
+
+        if (result.records.length === 0) {
+            return res.status(200).json({
+                nombre: req.user.nombre || 'Cliente Registrado',
+                dni: dni,
+                username: req.user.username || '',
+                email: req.user.email || '',
+                wallet: `cliente-${dni}.kipulux.testnet`,
+                near_account_id: `cliente-${dni}.kipulux.testnet`,
+                certificacion_kipulux: 'KIPULUX-VERIFIED-COLLECTOR',
+                total_compras: 0
+            });
+        }
+
+        const r = result.records[0];
+        const rawCount = r.get('total_compras');
+        const total = rawCount && typeof rawCount.toNumber === 'function' ? rawCount.toNumber() : Number(rawCount || 0);
+
+        return res.status(200).json({
+            nombre: r.get('nombre') || 'Cliente Verificado',
+            dni: r.get('dni') || dni,
+            username: r.get('username') || '',
+            email: r.get('email') || '',
+            wallet: r.get('wallet') || '',
+            near_account_id: r.get('near_account_id') || `cliente-${dni}.kipulux.testnet`,
+            certificacion_kipulux: 'KIPULUX-VERIFIED-COLLECTOR',
+            total_compras: total
+        });
+    } catch (err) {
+        console.error('[API Perfil Cliente] Error:', err);
+        return res.status(500).json({ error: 'Error al consultar perfil del cliente.' });
+    } finally {
+        await session.close();
+    }
+});
+
 app.post('/api/auth/mock-login', validateBody(loginSchema), async (req, res) => {
     const { identifier, password } = req.body;
     const session = driver.session();
