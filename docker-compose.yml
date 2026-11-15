@@ -49,7 +49,7 @@ services:
       - NEAR_NODE_URL=${NEAR_NODE_URL:-https://rpc.testnet.near.org}
       - NEAR_CONTRACT_NAME=${NEAR_CONTRACT_NAME:-kipulux-8046af.testnet}
       - NEAR_RELAYER_ACCOUNT_ID=${NEAR_RELAYER_ACCOUNT_ID:-kipu-relayer-8046af.testnet}
-      - NEAR_RELAYER_PRIVATE_KEY=${NEAR_RELAYER_PRIVATE_KEY:-ed25519:your_near_relayer_private_key_here}
+      - NEAR_RELAYER_PRIVATE_KEY=${NEAR_RELAYER_PRIVATE_KEY:-}
       - NEAR_MOCK_FALLBACK=${NEAR_MOCK_FALLBACK:-false}
     depends_on:
       neo4j:

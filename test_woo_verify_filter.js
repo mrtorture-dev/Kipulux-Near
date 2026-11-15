@@ -1,11 +1,15 @@
 const axios = require('axios');
+require('dotenv').config();
 
 async function verifyFilter() {
-  const credentials = Buffer.from('ck_your_woocommerce_consumer_key_placeholder:cs_your_woocommerce_consumer_secret_placeholder').toString('base64');
+  const wooKey = process.env.WOOCOMMERCE_CONSUMER_KEY || '';
+  const wooSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET || '';
+  const credentials = Buffer.from(`${wooKey}:${wooSecret}`).toString('base64');
+  const testDni = process.env.TEST_DNI || '71000001';
   
   try {
     const response = await axios.get('https://alda.com.pe/wp-json/wc/v3/orders', {
-      params: { _billing_taxable: '74629527' },
+      params: { _billing_taxable: testDni },
       headers: { 'Authorization': `Basic ${credentials}` }
     });
     

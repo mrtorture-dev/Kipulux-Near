@@ -121,8 +121,8 @@ A continuación se documenta el conjunto completo de variables de entorno config
 | `NEO4J_URI` | URI de conexión Bolt a la base de datos Neo4j | `neo4j://127.0.0.1:7687` |
 | `NEO4J_USER` | Usuario de autenticación Neo4j | `neo4j` |
 | `NEO4J_PASSWORD` | Contraseña de acceso Neo4j | `your_neo4j_password_here` |
-| `JWT_SECRET` | Clave secreta para la emisión y verificación de JWT Bearer | `supersecret_kipu_key_2026` |
-| `VAULT_PRIVATE_KEY` | Clave privada de wallet relayer para transacciones on-chain | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
+| `JWT_SECRET` | Clave secreta para la emisión y verificación de JWT Bearer | `your_jwt_secret_key_here` |
+| `VAULT_PRIVATE_KEY` | Clave privada de wallet relayer para transacciones on-chain | `your_vault_private_key_here` |
 | `CONTRACT_ADDRESS` | Dirección del contrato inteligente ERC-721 desplegado | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
 | `SIMPLEFACT_API_URL` | URL base de la API REST de SimpleFact SUNAT | `https://api.simplefact.pe/v1` |
 | `SIMPLEFACT_TOKEN_BEARER` | Token de autenticación Bearer para SimpleFact (valor `'mock'` activa fallback sintético) | `mock` |
@@ -140,7 +140,7 @@ La capa de datos utiliza el controlador oficial `neo4j-driver` (`v5.21.0`) conec
 const neo4j = require('neo4j-driver');
 const uri = process.env.NEO4J_URI || 'neo4j://127.0.0.1:7687';
 const user = process.env.NEO4J_USER || 'neo4j';
-const password = process.env.NEO4J_PASSWORD || 'your_neo4j_password_here';
+const password = process.env.NEO4J_PASSWORD || 'password';
 const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
 ```
 

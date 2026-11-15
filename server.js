@@ -2586,7 +2586,9 @@ app.get('/api/compras-woo/:dni', async (req, res) => {
 
     const session = driver.session();
     try {
-        const credentials = Buffer.from('ck_your_woocommerce_consumer_key_placeholder:cs_your_woocommerce_consumer_secret_placeholder').toString('base64');
+        const wooKey = process.env.WOOCOMMERCE_CONSUMER_KEY || '';
+        const wooSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET || '';
+        const credentials = Buffer.from(`${wooKey}:${wooSecret}`).toString('base64');
         const wooUrl = 'https://alda.com.pe/wp-json/wc/v3/orders';
         
         let wooOrders = [];
@@ -2734,7 +2736,9 @@ app.get('/api/admin/compras-totales', authenticateToken, async (req, res) => {
 
     const session = driver.session();
     try {
-        const credentials = Buffer.from('ck_your_woocommerce_consumer_key_placeholder:cs_your_woocommerce_consumer_secret_placeholder').toString('base64');
+        const wooKey = process.env.WOOCOMMERCE_CONSUMER_KEY || '';
+        const wooSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET || '';
+        const credentials = Buffer.from(`${wooKey}:${wooSecret}`).toString('base64');
         const wooUrl = 'https://alda.com.pe/wp-json/wc/v3/orders';
         
         console.log(`[Admin Dashboard API] Consultando últimas 100 órdenes de WooCommerce...`);

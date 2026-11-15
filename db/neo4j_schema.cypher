@@ -71,7 +71,7 @@ CREATE (prod)-[:SUBDIVIDED_FROM]->(loteNieto)
 CREATE (cli:Cliente {
     DNI_O_RUC_Comprador: "00792282",
     nombre_completo: "Juan Pérez",
-    wallet_address: "0x0000000000000000000000000000000000000000000000000000000000000000"
+    wallet_address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 })
 
 // H. Registrar la Venta

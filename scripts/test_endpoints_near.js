@@ -9,13 +9,14 @@
  * 6. POST /api/clientes/registrar (sin wallet_address EVM - RF-15)
  */
 
-require('dotenv').config({ path: 'D:/Proyectos Universitarios/Kipulux-Near/.env.near' });
-require('dotenv').config({ path: 'D:/Proyectos Universitarios/Kipulux-Near/.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env.near') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 
 const BASE_URL = 'http://localhost:3005';
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
+const JWT_SECRET = process.env.JWT_SECRET || 'Kipulux_Clave_Secreta_Segura_2026';
 
 // Tokens de prueba para Artesano y Cliente
 const tokenArtesano = jwt.sign({

@@ -32,7 +32,16 @@ DIRECCIONES = [
     "Calle San Agustín 180"
 ]
 
-EXCEL_PATH = 'D:/Proyectos Universitarios/Kipulux-Near/Ventas GRUPO ALDA 2022.xlsx'
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+EXCEL_PATH = os.path.join(BASE_DIR, 'Ventas GRUPO ALDA 2022.xlsx')
+COMPRAS_JSON_PATH = os.path.join(BASE_DIR, 'compras.json')
+
+OBSERVACIONES_SINTETICAS = [
+    "Entregar en recepción",
+    "Llamar al llegar",
+    "Empaque de regalo estándar",
+    "Entrega en horario de oficina"
+]
 
 def anonymize_data():
     print("Cargando hojas de Excel...")
@@ -51,11 +60,11 @@ def anonymize_data():
     comprobantes[name_col_comp] = comprobantes[name_col_comp].astype(object)
 
     for col in detallado.columns:
-        if any(w in col.lower() for w in ['email', 'fono', 'telefono', 'tel', 'direcci']):
+        if any(w in col.lower() for w in ['email', 'fono', 'telefono', 'tel', 'direcci', 'diecci', 'observac']):
             detallado[col] = detallado[col].astype(object)
 
     for col in comprobantes.columns:
-        if any(w in col.lower() for w in ['email', 'fono', 'telefono', 'tel', 'direcci']):
+        if any(w in col.lower() for w in ['email', 'fono', 'telefono', 'tel', 'direcci', 'diecci', 'observac']):
             comprobantes[col] = comprobantes[col].astype(object)
 
     all_dnis = set(detallado[doc_col_det].dropna().astype(str).str.replace('.0', '').str.strip().tolist())
@@ -102,8 +111,10 @@ def anonymize_data():
                         df.iloc[idx, df.columns.get_loc(col)] = meta['email']
                     elif any(w in col_lower for w in ['fono', 'telefono', 'tel']):
                         df.iloc[idx, df.columns.get_loc(col)] = meta['phone']
-                    elif 'direcci' in col_lower:
+                    elif any(w in col_lower for w in ['direcci', 'diecci']):
                         df.iloc[idx, df.columns.get_loc(col)] = meta['direccion']
+                    elif 'observac' in col_lower and not pd.isna(df.iloc[idx][col]):
+                        df.iloc[idx, df.columns.get_loc(col)] = random.choice(OBSERVACIONES_SINTETICAS)
         return df
 
     detallado_anon = sanitize_df(detallado, doc_col_det, name_col_det)
@@ -140,7 +151,7 @@ def anonymize_data():
             cleaned_records.append(clean_rec)
         compras_sinteticas[dni] = cleaned_records
 
-    with open('D:/Proyectos Universitarios/Kipulux-Near/compras.json', 'w', encoding='utf-8') as f:
+    with open(COMPRAS_JSON_PATH, 'w', encoding='utf-8') as f:
         json.dump(compras_sinteticas, f, ensure_ascii=False, indent=2)
 
     print(f"Archivo 'compras.json' actualizado con {len(compras_sinteticas)} clientes sintéticos.")
