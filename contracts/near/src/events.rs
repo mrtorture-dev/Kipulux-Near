@@ -12,6 +12,8 @@ pub enum EventLogVariant {
     NftTransfer(Vec<NftTransferData>),
     CustodiaActualizada(Vec<CustodiaData>),
     VentaRegistrada(Vec<VentaData>),
+    EscrowListado(Vec<EscrowListadoData>),
+    ReventaEscrowLiquidada(Vec<ReventaEscrowData>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -58,6 +60,28 @@ pub struct VentaData {
     pub comprador: AccountId,
     pub hash_sunat: String,
     pub numero_boleta: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct EscrowListadoData {
+    pub token_id: String,
+    pub seller_id: AccountId,
+    pub price_yocto: String,
+    pub royalty_bps: u16,
+    pub brand_account_id: AccountId,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ReventaEscrowData {
+    pub token_id: String,
+    pub seller_id: AccountId,
+    pub buyer_id: AccountId,
+    pub brand_account_id: AccountId,
+    pub price_yocto: String,
+    pub royalty_yocto: String,
+    pub seller_payout_yocto: String,
 }
 
 impl EventLog {

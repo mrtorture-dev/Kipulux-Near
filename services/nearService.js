@@ -127,10 +127,13 @@ async function mintAuthorized(artesanoId, sku, tokenUri, extraMeta = {}) {
 
             const txHash = outcome.transaction_outcome?.id || outcome.transaction?.hash;
             const receiptId = outcome.receipts_outcome?.[0]?.id || txHash;
+            const slug = tokenId.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+            const passportAccountId = `${slug}.${CONTRACT_NAME}`;
 
             return {
                 tokenId,
                 nearTokenId: tokenId,
+                passportAccountId,
                 nearTxHash: txHash,
                 receiptId,
                 status: 'ORIGINADO',
@@ -301,17 +304,33 @@ async function ejecutarReventaEscrow(tokenId, vendedorAccount, compradorAccount,
                 return RELAYER_ACCOUNT_ID;
             }
             const cleanComprador = sanitizarAccountId(compradorAccount);
+            const precioYocto = parseNearAmount
+                ? parseNearAmount(String(precio))
+                : BigInt(Math.round(precio * 1e6)) * BigInt('1000000000000000000');
 
-            // En la red real, invocamos transferir_custodia hacia el comprador
-            const outcome = await client.relayerAccount.callFunctionRaw({
+            // 1. Listar el NFT en el Escrow on-chain
+            await client.relayerAccount.callFunctionRaw({
                 contractId: CONTRACT_NAME,
-                methodName: 'transferir_custodia',
+                methodName: 'listar_reventa_escrow',
                 args: {
                     token_id: tokenId,
-                    nueva_tienda: cleanComprador
+                    precio_yocto: String(precioYocto)
                 },
                 gas: BigInt('150000000000000'),
                 deposit: BigInt('1')
+            });
+
+            // 2. Liquidar el Escrow on-chain adjuntando el depósito completo en NEAR
+            // El contrato transfiere automáticamente la regalía a la marca y el neto al vendedor
+            const outcome = await client.relayerAccount.callFunctionRaw({
+                contractId: CONTRACT_NAME,
+                methodName: 'comprar_reventa_escrow',
+                args: {
+                    token_id: tokenId,
+                    comprador: cleanComprador
+                },
+                gas: BigInt('200000000000000'),
+                deposit: BigInt(precioYocto)
             });
 
             const txHash = outcome.transaction_outcome?.id || outcome.transaction?.hash;

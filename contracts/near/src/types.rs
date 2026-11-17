@@ -1,6 +1,7 @@
-use near_sdk::json_types::Base64VecU8;
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::near;
 use near_sdk::AccountId;
+use std::collections::HashMap;
 
 /// Identificador canónico del Token NFT (ej. "KIPU-CUERO-001")
 pub type TokenId = String;
@@ -76,9 +77,27 @@ pub struct JsonToken {
 pub struct PasaporteCompleto {
     pub token_id: TokenId,
     pub owner_id: AccountId,
+    pub passport_account_id: Option<AccountId>,
     pub estado: EstadoPrenda,
     pub metadata: TokenMetadata,
     pub hash_sunat: Option<String>,
     pub numero_boleta: Option<String>,
     pub custodio_actual: AccountId,
+}
+
+/// Orden de Escrow on-chain para reventa secundaria con regalía automática
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug)]
+pub struct EscrowListing {
+    pub seller_id: AccountId,
+    pub price: U128,
+    pub royalty_bps: u16,
+    pub brand_account_id: AccountId,
+}
+
+/// Estructura de liquidación NEP-199 (Royalties)
+#[near(serializers = [json])]
+#[derive(Clone, Debug)]
+pub struct Payout {
+    pub payout: HashMap<AccountId, U128>,
 }
